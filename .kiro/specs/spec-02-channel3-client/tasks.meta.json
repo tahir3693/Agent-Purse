@@ -1,0 +1,124 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Install SDK and add module scaffolding": [
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793873872159
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793873886536
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793874527527
+      }
+    ],
+    "2. Implement client builder and core calls": [
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793873872257
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793874534193
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793874636324
+      }
+    ],
+    "3. Implement resilience + priceCheck": [
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793873872309
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793874646115
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793874774711
+      }
+    ],
+    "4. Smoke script + pnpm script": [
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793873872416
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793874785509
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793875082578
+      }
+    ],
+    "5. Unit tests (fixtures, no live calls)": [
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793873872464
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793874786801
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793875083448
+      }
+    ],
+    "6. Property tests (fast-check, >=100 iters)": [
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793873872511
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793874788821
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793875084704
+      }
+    ],
+    "7. Verify gates": [
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793873872553
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793875092387
+      },
+      {
+        "executionId": "32f70ece-5f5e-4c18-aee3-08a36d2b9703",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793875197859
+      }
+    ]
+  }
+}

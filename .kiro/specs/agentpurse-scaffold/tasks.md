@@ -1,17 +1,17 @@
-# Implementation Plan: AgentPurse Scaffold (spec-01)
+﻿# Implementation Plan: AgentPurse Scaffold (spec-01)
 
 ## Overview
 
 This plan builds the AgentPurse scaffold slice incrementally: root monorepo tooling first, then the shared package, then the Fastify API with its health endpoint and tests, then the three placeholder workspaces, then deployment/templating artifacts (render.yaml, .env.example, .gitignore, LICENSE, README conventions), and finally Git init + initial commit. The Render Blueprint is only committed after an early research task confirms the current Render Blueprint field names so the design's `TODO(verify)` markers are resolved rather than guessed.
 
-Scope is strictly the scaffold. No PayPal, Risk Guard, dashboard, mobile, or demo-agent behavior is implemented here — those workspaces are trivial placeholders. Definition of done: a live Render HTTPS URL returns `200` healthy from `GET /healthz` (verified manually in the final task).
+Scope is strictly the scaffold. No PayPal, Risk Guard, dashboard, mobile, or demo-agent behavior is implemented here â€” those workspaces are trivial placeholders. Definition of done: a live Render HTTPS URL returns `200` healthy from `GET /healthz` (verified manually in the final task).
 
 ## Tasks
 
 - [x] 1. Research and confirm current Render Blueprint spec
   - Fetch the current Render Blueprint spec documentation (https://render.com/docs/blueprint-spec) and confirm: the static-site block shape (`type`/`runtime`/`env` field and the static publish-path field name), the valid `plan` names for `databases` and `web` services on the account's tier, and how pnpm is provided on a Node runtime (corepack enable prefix vs. `packageManager` field in root package.json)
   - Record the confirmed values in a short note to carry into task 10, resolving every `TODO(verify)` marker in design.md before render.yaml is written
-  - This is a research/verification task — do not guess field names; base them on the fetched current spec
+  - This is a research/verification task â€” do not guess field names; base them on the fetched current spec
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 9.1_
 
 - [x] 2. Set up root monorepo structure and shared tooling
@@ -54,26 +54,26 @@ Scope is strictly the scaffold. No PayPal, Risk Guard, dashboard, mobile, or dem
     - Create `api/src/index.ts` that builds the server, reads config, calls `listen({ host, port })`, and on bind failure logs the error via the Fastify logger and calls `process.exit(1)`
     - _Requirements: 3.5, 3.8, 3.9_
 
-  - [ ]* 4.4 Write unit tests for loadConfig and the health endpoint
-    - Example tests for `loadConfig`: unset → `0.0.0.0`/`3000`, and valid set values returned as-is
-    - Health handler test: build with `buildServer()` and use Fastify `inject()` to assert `GET /healthz` → `200` with body `{ status: "ok" }` (no socket bind)
+  - [x] 4.4 Write unit tests for loadConfig and the health endpoint
+    - Example tests for `loadConfig`: unset â†’ `0.0.0.0`/`3000`, and valid set values returned as-is
+    - Health handler test: build with `buildServer()` and use Fastify `inject()` to assert `GET /healthz` â†’ `200` with body `{ status: "ok" }` (no socket bind)
     - _Requirements: 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
 
-  - [ ]* 4.5 Write property test for the health endpoint contract
+  - [x] 4.5 Write property test for the health endpoint contract
     - **Property 1: Health endpoint returns the healthy contract**
-    - For any number of `inject()` `GET /healthz` requests against a freshly built server, assert status `200` and body deep-equal to `{ "status": "ok" }`; ≥100 iterations
+    - For any number of `inject()` `GET /healthz` requests against a freshly built server, assert status `200` and body deep-equal to `{ "status": "ok" }`; â‰¥100 iterations
     - Tag: `// Feature: agentpurse-scaffold, Property 1: Health endpoint returns the healthy contract`
     - **Validates: Requirements 3.2, 3.3, 3.4, 9.3**
 
-  - [ ]* 4.6 Write property test for PORT parsing fallback
+  - [x] 4.6 Write property test for PORT parsing fallback
     - **Property 2: Port parsing falls back to the default for any invalid input**
-    - For any PORT not an integer in `[0, 65535]` (empty/unset, non-numeric, negative, fractional, out-of-range) → `port === 3000`; for any integer string in range → that integer; ≥100 iterations
+    - For any PORT not an integer in `[0, 65535]` (empty/unset, non-numeric, negative, fractional, out-of-range) â†’ `port === 3000`; for any integer string in range â†’ that integer; â‰¥100 iterations
     - Tag: `// Feature: agentpurse-scaffold, Property 2: Port parsing falls back to the default for any invalid input`
     - **Validates: Requirements 3.5, 3.7**
 
-  - [ ]* 4.7 Write property test for HOST parsing fallback
+  - [x] 4.7 Write property test for HOST parsing fallback
     - **Property 3: Host parsing falls back to the default when unset or blank**
-    - For any HOST unset or blank (empty/whitespace-only) → `host === "0.0.0.0"`; for any non-blank string → that string; ≥100 iterations
+    - For any HOST unset or blank (empty/whitespace-only) â†’ `host === "0.0.0.0"`; for any non-blank string â†’ that string; â‰¥100 iterations
     - Tag: `// Feature: agentpurse-scaffold, Property 3: Host parsing falls back to the default when unset or blank`
     - **Validates: Requirements 3.5, 3.6**
 
@@ -82,10 +82,10 @@ Scope is strictly the scaffold. No PayPal, Risk Guard, dashboard, mobile, or dem
     - Create `web/package.json` (name `@agentpurse/web`) and `web/src/index.ts` placeholder entry with no behavior
     - Create `mobile/package.json` (name `@agentpurse/mobile`) and `mobile/src/index.ts` placeholder entry with no behavior
     - Create `demo-agent/package.json` (name `@agentpurse/demo-agent`) and `demo-agent/src/index.ts` placeholder entry with no behavior
-    - Keep each installable and type-checkable (do NOT scaffold React/Vite, Expo, or pull the AG Studio starter — that is spec-07)
+    - Keep each installable and type-checkable (do NOT scaffold React/Vite, Expo, or pull the AG Studio starter â€” that is spec-07)
     - _Requirements: 1.4, 1.5, 1.6_
 
-- [x] 6. Checkpoint — install, typecheck, build, lint, and test
+- [x] 6. Checkpoint â€” install, typecheck, build, lint, and test
   - Run `pnpm install` at root and confirm all five workspaces resolve with success exit; run `pnpm -r run typecheck`, `pnpm -r run build`, `eslint .`, and `vitest run` and confirm all pass
   - Ensure all tests pass, ask the user if questions arise.
   - _Requirements: 1.8, 1.9, 2.5, 2.6, 2.9_
@@ -104,30 +104,41 @@ Scope is strictly the scaffold. No PayPal, Risk Guard, dashboard, mobile, or dem
 
 - [x] 10. Create render.yaml Blueprint using the confirmed spec from task 1
   - Create `render.yaml` with exactly one API web service (`healthCheckPath: /healthz`, build runs filtered pnpm install + `@agentpurse/api...` build, start `node api/dist/index.js`), exactly one web static site, and exactly one managed Postgres
-  - Wire `DATABASE_URL` from the managed DB via `fromDatabase` → `connectionString`; declare all other secret env vars by name with `sync: false` (no literal secret values in the file)
-  - Apply the confirmed static-site field shape, plan names, and pnpm-on-Render approach (corepack prefix or `packageManager`) from task 1 — remove all `TODO(verify)` markers
+  - Wire `DATABASE_URL` from the managed DB via `fromDatabase` â†’ `connectionString`; declare all other secret env vars by name with `sync: false` (no literal secret values in the file)
+  - Apply the confirmed static-site field shape, plan names, and pnpm-on-Render approach (corepack prefix or `packageManager`) from task 1 â€” remove all `TODO(verify)` markers
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
 - [x] 11. Write the README CONVENTIONS section
-  - Create/extend `README.md` with a CONVENTIONS section documenting: the Money_Convention (signed integer cents + ISO 4217) with a worked example (`$12.34 USD` → `{ amountCents: 1234, currency: "USD" }`); secrets supplied exclusively via environment variables and never committed; the required env var names and that their values are excluded from version control; the public MIT license; and the no-third-party-logos/trademarks rule (only first-party or license-cleared assets)
+  - Create/extend `README.md` with a CONVENTIONS section documenting: the Money_Convention (signed integer cents + ISO 4217) with a worked example (`$12.34 USD` â†’ `{ amountCents: 1234, currency: "USD" }`); secrets supplied exclusively via environment variables and never committed; the required env var names and that their values are excluded from version control; the public MIT license; and the no-third-party-logos/trademarks rule (only first-party or license-cleared assets)
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
 
-- [-] 12. Initialize Git and create the initial commit
+- [x] 12. Initialize Git and create the initial commit
   - Run `git init` at the monorepo root; stage all non-ignored scaffold files and create a single initial commit on the default branch
   - Confirm ignored files/dirs are excluded from the committed content; if nothing is staged, the commit aborts with a "nothing to commit" indication and the repo is left with no commits
   - _Requirements: 7.1, 7.2, 7.3, 7.5_
 
-- [~] 13. Manual deploy + live health verification (Definition of Done)
-  - **MANUAL / OUT-OF-BAND — not fully automatable by the agent.** The Repository_Maintainer performs this step with a live Render account.
-  - Run `render blueprints validate` against `render.yaml` to catch `fromDatabase` name typos and field-name issues before deploy
-  - Push the repo to the Git remote connected to Render, create the Blueprint deployment, and wait for the API web service, web static site, and managed Postgres to provision
-  - Send `GET https://<app>.onrender.com/healthz` and confirm HTTP `200` within 2000 ms with a JSON body indicating a healthy state (`{ "status": "ok" }`); if not 200/healthy or unreachable within a 10-second timeout, treat the slice as NOT meeting its definition of done
-  - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+- [ ] 13. Manual deploy + live health verification (Definition of Done)
+  - **MANUAL / OUT-OF-BAND — not fully automatable by the agent.** The Repository_Maintainer performs these sub-steps with a live Render account; the agent cannot execute them because they depend on external Render credentials and a live deployment.
+
+  - [ ] 13.1 Validate the Blueprint locally
+    - Run `render blueprints validate` against `render.yaml` to catch `fromDatabase` name typos and field-name issues before deploying
+    - Fix any reported schema or reference errors and re-run until validation passes
+    - _Requirements: 9.1_
+
+  - [ ] 13.2 Push and create the Blueprint deployment
+    - Push the repo to the Git remote connected to Render and create the Blueprint deployment
+    - Wait for all three resources to provision: the API web service, the web static site, and the managed Postgres
+    - _Requirements: 9.1, 9.2_
+
+  - [ ] 13.3 Verify live health endpoint
+    - Send `GET https://<app>.onrender.com/healthz` and confirm HTTP `200` within 2000 ms with a JSON body indicating a healthy state (`{ "status": "ok" }`)
+    - If not 200/healthy or unreachable within a 10-second timeout, treat the slice as NOT meeting its definition of done
+    - _Requirements: 9.2, 9.3, 9.4, 9.5_
 
 ## Notes
 
 - Tasks marked with `*` are optional (test sub-tasks) and can be skipped for a faster MVP, but they implement the design's Correctness Properties and are recommended.
-- Property tests (4.5–4.7) use `fast-check` on top of Vitest, run ≥100 iterations each, and are tagged with the exact property name from the design's Correctness Properties section.
+- Property tests (4.5â€“4.7) use `fast-check` on top of Vitest, run â‰¥100 iterations each, and are tagged with the exact property name from the design's Correctness Properties section.
 - Task 1 is intentionally first: it resolves the design's `TODO(verify)` markers (Render Blueprint field names, plan names, pnpm-on-Render) so render.yaml in task 10 is written from confirmed facts, not guesses.
 - Task 13 is a manual, out-of-band maintainer step (live Render deploy + health check); it is the only task the agent cannot fully automate because it depends on an external Render account and a live deployment.
 - Each task references the specific requirement sub-clauses it satisfies for traceability.
@@ -144,7 +155,7 @@ Scope is strictly the scaffold. No PayPal, Risk Guard, dashboard, mobile, or dem
     { "id": 4, "tasks": ["4.4", "4.5", "4.6", "4.7", "5.1"] },
     { "id": 5, "tasks": ["7", "8", "9", "10", "11"] },
     { "id": 6, "tasks": ["12"] },
-    { "id": 7, "tasks": ["13"] }
+    { "id": 7, "tasks": ["13.1", "13.2", "13.3"] }
   ]
 }
 ```
