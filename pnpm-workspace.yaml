@@ -1,0 +1,11 @@
+packages:
+  - "api"
+  - "web"
+  - "mobile"
+  - "demo-agent"
+  - "packages/*"
+
+# Allow esbuild (vitest's bundler dependency) to run its install script so its
+# platform binary is available. pnpm blocks build scripts by default.
+allowBuilds:
+  esbuild: true
