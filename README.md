@@ -64,3 +64,12 @@ This repository is **public** and licensed under the **MIT license**. The full M
 ### Branding and assets
 
 The UI and assets contain **no third-party logos or trademarks**. Only **first-party assets** or assets that have been **explicitly license-cleared** are permitted anywhere in the repository.
+
+## Smoke tests
+
+Smoke scripts run against the live sandbox APIs to confirm end-to-end wiring. They are not part of the test suite (tests use fixtures) and never print secret values. They auto-load the root `.env`.
+
+- `pnpm channel3:smoke "<query>"` — live Channel3 search.
+- `pnpm paypal:smoke` — creates a $1.00 USD sandbox AUTHORIZE order, prints the approval URL, then pauses for you to approve in the browser with a sandbox buyer and press Enter to authorize + capture. Use `pnpm paypal:smoke --no-approve` to stop after creating the order.
+
+The manual browser-approval pause in `paypal:smoke` is temporary: it goes away once Vault linking (spec-06) lets AgentPurse charge a vaulted payment source without a per-order human approval step.

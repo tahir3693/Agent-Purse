@@ -12,7 +12,8 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "vitest run",
     "build": "pnpm -r run build",
-    "channel3:smoke": "pnpm --filter @agentpurse/api channel3:smoke"
+    "channel3:smoke": "pnpm --filter @agentpurse/api channel3:smoke",
+    "paypal:smoke": "pnpm --filter @agentpurse/api paypal:smoke"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

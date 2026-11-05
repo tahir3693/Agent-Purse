@@ -1,0 +1,107 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Shared contracts (packages/shared)": [
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897242697
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897272520
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897423391
+      }
+    ],
+    "2. Budget + velocity helpers": [
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897242871
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897458246
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897680396
+      }
+    ],
+    "3. evaluateRules pipeline": [
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897243173
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897710218
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897966847
+      }
+    ],
+    "4. Unit tests (all permutations + boundaries)": [
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897243279
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897985600
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793898243307
+      }
+    ],
+    "5. Property tests (fast-check, >=100 iters)": [
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897243388
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793898005911
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793898260024
+      }
+    ],
+    "6. Verify gates": [
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793897243508
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793898262969
+      },
+      {
+        "executionId": "61fbbeae-adbf-4df7-9be3-4a1e078d4944",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793898410312
+      }
+    ]
+  }
+}
