@@ -1,0 +1,164 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Types, errors, config, env files": [
+      {
+        "executionId": "afeeb57f-6826-463e-bbc4-95305b52ea29",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793950102547
+      },
+      {
+        "executionId": "afeeb57f-6826-463e-bbc4-95305b52ea29",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793950109452
+      },
+      {
+        "executionId": "afeeb57f-6826-463e-bbc4-95305b52ea29",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793950261902
+      }
+    ],
+    "2. BraintreeProvider": [
+      {
+        "executionId": "afeeb57f-6826-463e-bbc4-95305b52ea29",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793950102669
+      },
+      {
+        "executionId": "afeeb57f-6826-463e-bbc4-95305b52ea29",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793950268597
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960685598
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960694189
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960853813
+      }
+    ],
+    "3. PayPalRestProvider and factory": [
+      {
+        "executionId": "afeeb57f-6826-463e-bbc4-95305b52ea29",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793950102748
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960685733
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960858602
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793961052602
+      }
+    ],
+    "4. Webhook route and server wiring": [
+      {
+        "executionId": "afeeb57f-6826-463e-bbc4-95305b52ea29",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793950102817
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960685797
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960859380
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793961052814
+      }
+    ],
+    "5. Smoke script and docs": [
+      {
+        "executionId": "afeeb57f-6826-463e-bbc4-95305b52ea29",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793950102886
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960685855
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960859805
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793961053095
+      }
+    ],
+    "6. Tests": [
+      {
+        "executionId": "afeeb57f-6826-463e-bbc4-95305b52ea29",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793950102956
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960685916
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793961067072
+      },
+      {
+        "executionId": "f42620cc-2c71-4235-9c8b-d182607eb419",
+        "chatSessionId": "sess_de53ec8b-93f0-497e-a480-bcc97b2f4587",
+        "timestamp": 1793961968319
+      },
+      {
+        "executionId": "f42620cc-2c71-4235-9c8b-d182607eb419",
+        "chatSessionId": "sess_de53ec8b-93f0-497e-a480-bcc97b2f4587",
+        "timestamp": 1793962171253
+      }
+    ],
+    "7. Verify gates": [
+      {
+        "executionId": "afeeb57f-6826-463e-bbc4-95305b52ea29",
+        "chatSessionId": "sess_85453b89-f7f3-44a5-b68b-50ea9321c333",
+        "timestamp": 1793950103025
+      },
+      {
+        "executionId": "75db1918-11bd-488c-bab8-e2686ffdc217",
+        "chatSessionId": "sess_2fe4aa99-cde4-4661-a6c6-24ad9e23e739",
+        "timestamp": 1793960685969
+      },
+      {
+        "executionId": "e56f106e-d6a5-4f1a-adee-f2b5d7531a60",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793962524916
+      },
+      {
+        "executionId": "e56f106e-d6a5-4f1a-adee-f2b5d7531a60",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793962615510
+      }
+    ]
+  }
+}

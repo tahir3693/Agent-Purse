@@ -35,16 +35,23 @@ Abstraction RiskReviewer with one LLM implementation (Anthropic Claude via ANTHR
 5. Commit after each slice with a clear message.
 6. External provider code (PayPal, Channel3, AI) lives behind an interface; tests use recorded fixtures/responses, no live calls in tests.
 
+## Payment provider (decision update)
+
+Primary: Braintree Sandbox (a PayPal service; organizers confirmed it satisfies the PayPal requirement). The existing PayPal REST code (api/src/paypal/) is kept as an optional second provider. All payment code lives behind the provider-neutral PaymentProvider interface in api/src/payments/; no Braintree or PayPal types leak outside the adapters. PAYMENT_PROVIDER = braintree | paypal, default braintree. PAYPAL_* keys are optional and only required when PAYMENT_PROVIDER=paypal; missing PayPal keys must never break startup or tests.
+
+Money flow: Approved intent -> Authorize (hold, no settlement) -> single-use mandate token (bound to authorizationId, amount, currency, payee) -> Capture (submit for settlement) -> Void (if the token expires or downstream execution fails).
+
 ## Environment variables (names only; values live in local .env, never committed)
 
-API (Render): DATABASE_URL, JWT_SECRET, MANDATE_SIGNING_KEY, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID, PAYPAL_BASE_URL (= https://api-m.sandbox.paypal.com), ANTHROPIC_API_KEY, AI_MODEL, CHANNEL3_API_KEY, WEB_ORIGIN, APP_BASE_URL.
+API (Render): DATABASE_URL, JWT_SECRET, MANDATE_SIGNING_KEY, PAYMENT_PROVIDER (braintree|paypal, default braintree), BRAINTREE_ENV (sandbox), BRAINTREE_MERCHANT_ID, BRAINTREE_PUBLIC_KEY, BRAINTREE_PRIVATE_KEY, ANTHROPIC_API_KEY, AI_MODEL (claude-sonnet-5-5), CHANNEL3_API_KEY, WEB_ORIGIN, APP_BASE_URL.
 
-Web (Vercel): API_BASE_URL (server only), NEXT_PUBLIC_API_BASE_URL (SSE stream only), NEXT_PUBLIC_AG_GRID_LICENSE_KEY. NEXT_PUBLIC_ vars are inlined at build time - set them in Vercel before building.
+Optional (only when PAYMENT_PROVIDER=paypal): PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID, PAYPAL_BASE_URL (= https://api-m.sandbox.paypal.com).
 
-Server-only secrets (CHANNEL3_API_KEY, PAYPAL_CLIENT_SECRET, ANTHROPIC_API_KEY, JWT_SECRET, MANDATE_SIGNING_KEY) must never reach the web or mobile bundles.
+Web (Vercel): API_BASE_URL (server only), NEXT_PUBLIC_API_BASE_URL (SSE stream only), NEXT_PUBLIC_AG_GRID_LICENSE_KEY (replaces the old AG_GRID_LICENSE_KEY). NEXT_PUBLIC_ vars are inlined at build time - set them in Vercel before building.
 
-Note: .env.example currently predates the Next.js/Vercel split (it lists AG_GRID_LICENSE_KEY and lacks WEB_ORIGIN). spec-04 (web-to-nextjs) owns reconciling .env.example to the names above.
+Server-only secrets (CHANNEL3_API_KEY, BRAINTREE_PRIVATE_KEY, PAYPAL_CLIENT_SECRET, ANTHROPIC_API_KEY, JWT_SECRET, MANDATE_SIGNING_KEY) must never reach the web or mobile bundles.
 
+If a variable is missing at runtime, name the variable and stop; never print key values or ask for them to be pasted.
 ## Quality gates
 
 Tests must cover: budget math, single-use token, replay and tamper rejection, idempotency, webhook signature, fail-closed on AI error, CORS allows only the web origin. A fresh clone must run locally from the README alone. Both hosted URLs must work from a cold start with seeded data. No secrets in git history; MIT license detected by GitHub.

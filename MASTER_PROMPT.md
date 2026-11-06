@@ -229,3 +229,11 @@ Create steering files first (`.kiro/steering/`: `product.md`, `tech.md`, `struct
 - Full Spec mode only for: paypal-core, risk-guard, mandate-and-pay.
 - Normal chat mode (from this file) for: web-to-nextjs, gateway-rules, vault-linking, dashboard, mobile, demo-agent-docs. Same checkpoints apply.
 - Keep spec documents short, no padding.
+
+## Decision update: Braintree primary
+- Braintree Sandbox (a PayPal service) is the primary payment provider; organizers confirmed it satisfies the PayPal requirement.
+- PayPal REST (api/src/paypal/) stays as an optional second provider; PAYPAL_* keys are needed only when PAYMENT_PROVIDER=paypal.
+- All payment code sits behind the provider-neutral PaymentProvider interface in api/src/payments/ (authorize, capture, void, getStatus, parseWebhook, linkPaymentMethod).
+- Env list: PAYMENT_PROVIDER, BRAINTREE_ENV, BRAINTREE_MERCHANT_ID, BRAINTREE_PUBLIC_KEY, BRAINTREE_PRIVATE_KEY, WEB_ORIGIN, API_BASE_URL, NEXT_PUBLIC_API_BASE_URL, NEXT_PUBLIC_AG_GRID_LICENSE_KEY (replaces AG_GRID_LICENSE_KEY).
+- Money flow: authorize (hold) -> mandate token bound to authorizationId, amount, currency, payee -> capture -> void on expiry or failure.
+- Honest wording: payments are Braintree sandbox transactions (a PayPal service); no real money or goods are exchanged.

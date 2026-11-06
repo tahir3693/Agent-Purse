@@ -41,10 +41,16 @@ importers:
       '@channel3/sdk':
         specifier: ^4.8.0
         version: 4.8.0
+      braintree:
+        specifier: ^3.41.0
+        version: 3.41.0
       fastify:
         specifier: ^5.2.1
         version: 5.12.8
     devDependencies:
+      '@types/braintree':
+        specifier: ^3.4.5
+        version: 3.4.5
       tsx:
         specifier: ^4.19.2
         version: 4.23.15
@@ -62,6 +68,9 @@ importers:
   web: {}
 
 packages:
+
+  '@braintree/wrap-promise@2.1.0':
+    resolution: {integrity: sha512-UIrJB+AfKU0CCfbMoWrsGpd2D/hBpY/SGgFI6WRHPOwhaZ3g9rz1weiJ6eb6L9KgVyunT7s2tckcPkbHw+NzeA==}
 
   '@channel3/sdk@4.8.0':
     resolution: {integrity: sha512-eoLdpTxG+7za0pcq3ULYl4vc0EEYN6EdegH4rJOdAhZVM2SFJnlRiZD6WZnT6uiaSaj3jBv3drlLi/X8YI0/bA==}
@@ -582,6 +591,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@types/braintree@3.4.5':
+    resolution: {integrity: sha512-QJHEdM4O1+14t9YuP3MB4hnp7dtw9GaOlaI912ailgHfV2SKzTbKTlbF6JnrfUP0nD9ea/WpUg/s9W+K09O6ww==}
+
   '@types/estree@1.0.10':
     resolution: {integrity: sha512-lTyOMnOcmRBzdCv6/4zUZCrEhV0xrqQiUZBZtVcbmLHBXKLnN8q89v/wKRF/Q0HbwVsqbIG3o5HDoFl9sduM+g==}
 
@@ -738,6 +750,10 @@ packages:
     resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
     engines: {node: 20 || >=22}
 
+  braintree@3.41.0:
+    resolution: {integrity: sha512-usaiCgjavM9dVMwszjcSdi1gf41Ujn5bqYtaEdbaeY9VVoy/Yenn4AaahpfulGRB8Fqc5RjfHd1ovg1SWvoFxw==}
+    engines: {node: '>=10.0', npm: '>=6'}
+
   cac@6.7.14:
     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
     engines: {node: '>=8'}
@@ -775,6 +791,9 @@ packages:
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
+
+  dateformat@4.5.1:
+    resolution: {integrity: sha512-OD0TZ+B7yP7ZgpJf5K2DIbj3FZvFvxgFUuaqA/V5zTjAtAAXZ1E8bktHxmAGs4x5b7PflqA9LeQ84Og7wYtF7Q==}
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -1150,6 +1169,10 @@ packages:
     resolution: {integrity: sha512-b3rppTKm9T+PsVCBEOUR46GWI7fdOs00VKZ1+9c1EWDaDMvjQc6tUwuFyIprgGgTcWoVHSKrU8H31ZHA2e0RHA==}
     engines: {node: '>=10'}
 
+  sax@1.6.1:
+    resolution: {integrity: sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q==}
+    engines: {node: '>=11.0.0'}
+
   secure-json-parse@4.1.1:
     resolution: {integrity: sha512-lnd81MQEZKjhW/Gd2TQqdd4XP6QYNdDW/EP+I7nTrFHP9y2LmaGPIHk9xsnzcOiEr1c39c/e84xFgGviQKBTRw==}
 
@@ -1335,6 +1358,14 @@ packages:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
     engines: {node: '>=0.10.0'}
 
+  xml2js@0.5.0:
+    resolution: {integrity: sha512-drPFnkQJik/O+uPKpqSgr22mpuFHqKdbS835iAQrUC73L2F5WkboIRd63ai/2Yg6I1jzifPFKH2NTK+cfglkIA==}
+    engines: {node: '>=4.0.0'}
+
+  xmlbuilder@11.0.1:
+    resolution: {integrity: sha512-fDlsI/kFEx7gLvbecc0/ohLG50fugQp8ryHzMTuW9vSa1GJ0XYWKnhsUx7oie3G98+r56aTQIUB4kht42R3JvA==}
+    engines: {node: '>=4.0'}
+
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
@@ -1343,6 +1374,8 @@ packages:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
 snapshots:
+
+  '@braintree/wrap-promise@2.1.0': {}
 
   '@channel3/sdk@4.8.0': {}
 
@@ -1665,6 +1698,10 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.67.4':
     optional: true
 
+  '@types/braintree@3.4.5':
+    dependencies:
+      '@types/node': 22.20.5
+
   '@types/estree@1.0.10': {}
 
   '@types/json-schema@7.0.15': {}
@@ -1858,6 +1895,12 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
+  braintree@3.41.0:
+    dependencies:
+      '@braintree/wrap-promise': 2.1.0
+      dateformat: 4.5.1
+      xml2js: 0.5.0
+
   cac@6.7.14: {}
 
   callsites@3.1.0: {}
@@ -1892,6 +1935,8 @@ snapshots:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
+
+  dateformat@4.5.1: {}
 
   debug@4.4.3:
     dependencies:
@@ -2327,6 +2372,8 @@ snapshots:
 
   safe-stable-stringify@2.5.0: {}
 
+  sax@1.6.1: {}
+
   secure-json-parse@4.1.1: {}
 
   semver@7.8.6: {}
@@ -2485,6 +2532,13 @@ snapshots:
       stackback: 0.0.2
 
   word-wrap@1.2.5: {}
+
+  xml2js@0.5.0:
+    dependencies:
+      sax: 1.6.1
+      xmlbuilder: 11.0.1
+
+  xmlbuilder@11.0.1: {}
 
   yocto-queue@0.1.0: {}
 

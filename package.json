@@ -13,6 +13,7 @@
     "test": "vitest run",
     "build": "pnpm -r run build",
     "channel3:smoke": "pnpm --filter @agentpurse/api channel3:smoke",
+    "payments:smoke": "pnpm --filter @agentpurse/api payments:smoke",
     "paypal:smoke": "pnpm --filter @agentpurse/api paypal:smoke"
   },
   "devDependencies": {

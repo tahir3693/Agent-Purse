@@ -70,6 +70,11 @@ The UI and assets contain **no third-party logos or trademarks**. Only **first-p
 Smoke scripts run against the live sandbox APIs to confirm end-to-end wiring. They are not part of the test suite (tests use fixtures) and never print secret values. They auto-load the root `.env`.
 
 - `pnpm channel3:smoke "<query>"` — live Channel3 search.
-- `pnpm paypal:smoke` — creates a $1.00 USD sandbox AUTHORIZE order, prints the approval URL, then pauses for you to approve in the browser with a sandbox buyer and press Enter to authorize + capture. Use `pnpm paypal:smoke --no-approve` to stop after creating the order.
+- `pnpm payments:smoke` — Braintree sandbox (default provider). Links a payment method with the sandbox nonce `fake-valid-nonce`, authorizes $10.00 USD and captures it, then authorizes $5.00 USD and voids it. Prints ids and statuses only. No browser approval is needed. Requires `BRAINTREE_MERCHANT_ID`, `BRAINTREE_PUBLIC_KEY`, `BRAINTREE_PRIVATE_KEY`; a missing variable is reported by name and the script exits non-zero.
+- `pnpm paypal:smoke` — optional second provider (PayPal REST). Creates a $1.00 USD sandbox AUTHORIZE order, prints the approval URL, then pauses for you to approve in the browser with a sandbox buyer and press Enter to authorize + capture. Use `pnpm paypal:smoke --no-approve` to stop after creating the order.
+
+### Honest disclosure
+
+Payments in this project are Braintree sandbox transactions (Braintree is a PayPal service). Channel3 supplies real product catalog and market price data. No real money or physical goods are exchanged.
 
 The manual browser-approval pause in `paypal:smoke` is temporary: it goes away once Vault linking (spec-06) lets AgentPurse charge a vaulted payment source without a per-order human approval step.

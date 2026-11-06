@@ -10,14 +10,17 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "channel3:smoke": "node --env-file-if-exists=../.env --import tsx src/channel3/smoke.ts",
+    "payments:smoke": "node --env-file-if-exists=../.env --import tsx src/payments/smoke.ts",
     "paypal:smoke": "node --env-file-if-exists=../.env --import tsx src/paypal/smoke.ts"
   },
   "dependencies": {
     "@agentpurse/shared": "workspace:*",
     "@channel3/sdk": "^4.8.0",
+    "braintree": "^3.41.0",
     "fastify": "^5.2.1"
   },
   "devDependencies": {
+    "@types/braintree": "^3.4.5",
     "tsx": "^4.19.2"
   }
 }

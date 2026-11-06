@@ -70,6 +70,12 @@ export interface PayPalClient {
     intentId: string,
   ): Promise<Capture>;
   voidAuthorization(authorizationId: string, intentId: string): Promise<void>;
+  /**
+   * GET /v2/payments/authorizations/{id}. TODO(verify): confirm endpoint and
+   * status values (CREATED, CAPTURED, PARTIALLY_CAPTURED, VOIDED, DENIED,
+   * EXPIRED, PENDING) against the official Payments v2 docs.
+   */
+  getAuthorization(authorizationId: string): Promise<Authorization>;
   getOrder(orderId: string): Promise<{ id: string; status: string }>;
   verifyWebhook(
     headers: Record<string, string | undefined>,
@@ -294,6 +300,19 @@ export function createHttpPayPalClient(deps: PayPalClientDeps): PayPalClient {
     );
   }
 
+  async function getAuthorization(
+    authorizationId: string,
+  ): Promise<Authorization> {
+    // TODO(verify): GET /v2/payments/authorizations/{id} per Payments v2 docs.
+    const data = await call<CaptureResponse>(
+      "GET",
+      `/v2/payments/authorizations/${encodeURIComponent(authorizationId)}`,
+    );
+    const id = requireField(data?.id, "id");
+    const status = requireField(data?.status, "status");
+    return { id, status };
+  }
+
   async function getOrder(
     orderId: string,
   ): Promise<{ id: string; status: string }> {
@@ -331,6 +350,7 @@ export function createHttpPayPalClient(deps: PayPalClientDeps): PayPalClient {
     authorizeOrder,
     captureAuthorization,
     voidAuthorization,
+    getAuthorization,
     getOrder,
     verifyWebhook,
   };
