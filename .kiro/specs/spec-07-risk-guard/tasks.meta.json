@@ -1,0 +1,90 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Types, schema, injection heuristic, audit": [
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793963907190
+      },
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793963919049
+      },
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793964291807
+      }
+    ],
+    "2. RiskReviewer and Anthropic adapter": [
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793963907308
+      },
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793963919509
+      },
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793964291998
+      }
+    ],
+    "3. evaluateRisk pipeline and public surface": [
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793963907356
+      },
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793964302757
+      },
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793964400890
+      }
+    ],
+    "4. Tests": [
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793963907399
+      },
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793964409290
+      },
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793964673380
+      }
+    ],
+    "5. Verify gates": [
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793963907495
+      },
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793964679798
+      },
+      {
+        "executionId": "6aacf798-d5c7-4db8-ae29-102912fa622e",
+        "chatSessionId": "sess_d924aee4-aac1-4856-9c48-454718f41d12",
+        "timestamp": 1793964880500
+      }
+    ]
+  }
+}

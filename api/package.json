@@ -17,7 +17,8 @@
     "@agentpurse/shared": "workspace:*",
     "@channel3/sdk": "^4.8.0",
     "braintree": "^3.41.0",
-    "fastify": "^5.2.1"
+    "fastify": "^5.2.1",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@types/braintree": "^3.4.5",
