@@ -40,6 +40,12 @@ function form(fields: Record<string, string>): string {
   return new URLSearchParams(fields).toString();
 }
 
+/** Deterministically change the last character (always differs from the original). */
+function flipLast(s: string): string {
+  const last = s.slice(-1);
+  return s.slice(0, -1) + (last === "0" ? "1" : "0");
+}
+
 describe("BraintreeProvider.parseWebhook (real SDK, offline)", () => {
   it("parses a valid signed sample notification", async () => {
     const { bt_signature, bt_payload } = await sample("tx_hook_1");
@@ -54,10 +60,10 @@ describe("BraintreeProvider.parseWebhook (real SDK, offline)", () => {
     const { bt_signature, bt_payload } = await sample();
     const p = realProvider();
     await expect(
-      p.parseWebhook({ bt_signature: bt_signature.replace(/.$/, "0"), bt_payload }),
+      p.parseWebhook({ bt_signature: flipLast(bt_signature), bt_payload }),
     ).rejects.toMatchObject({ code: "invalid_signature" });
     await expect(
-      p.parseWebhook({ bt_signature, bt_payload: bt_payload.replace(/.$/, "A") + "A" }),
+      p.parseWebhook({ bt_signature, bt_payload: flipLast(bt_payload) }),
     ).rejects.toMatchObject({ code: "invalid_signature" });
   });
 
