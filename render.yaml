@@ -1,37 +1,35 @@
-# render.yaml — AgentPurse scaffold Blueprint
-# Resource names (keep wiring references in sync):
-#   db:  agentpurse-db   (managed Postgres)
-#   api: agentpurse-api  (web service)
-#   web: agentpurse-web  (static site)
-#
-# Secrets are referenced by name with `sync: false` and set in the Render
-# Dashboard on first Blueprint create — no literal secret values live here.
-# DATABASE_URL is injected from the managed Postgres via fromDatabase.
-
 databases:
   - name: agentpurse-db
     plan: free
 
 services:
-  # API web service (Node runtime). pnpm is provided via corepack: the root
-  # package.json pins `packageManager: pnpm@9.12.0` and the build command
-  # enables + activates corepack so the `pnpm` shim is on PATH before install.
   - type: web
     name: agentpurse-api
     runtime: node
     plan: free
     healthCheckPath: /healthz
-    buildCommand: corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @agentpurse/api... run build
+    buildCommand: corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install --frozen-lockfile && pnpm -r run build
     startCommand: node api/dist/index.js
     envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: agentpurse-db
           property: connectionString
-      # Secrets — set in the Render Dashboard, never committed (sync: false)
       - key: JWT_SECRET
         sync: false
       - key: MANDATE_SIGNING_KEY
+        sync: false
+      - key: PAYMENT_PROVIDER
+        sync: false
+      - key: BRAINTREE_ENV
+        sync: false
+      - key: BRAINTREE_MERCHANT_ID
+        sync: false
+      - key: BRAINTREE_PUBLIC_KEY
+        sync: false
+      - key: BRAINTREE_PRIVATE_KEY
+        sync: false
+      - key: WEB_ORIGIN
         sync: false
       - key: PAYPAL_CLIENT_ID
         sync: false
@@ -47,16 +45,11 @@ services:
         sync: false
       - key: CHANNEL3_API_KEY
         sync: false
-      - key: AG_GRID_LICENSE_KEY
-        sync: false
       - key: APP_BASE_URL
         sync: false
 
-  # Web static site. `runtime: static` marks the service as a static site;
-  # `staticPublishPath` is the built-output directory relative to repo root.
-  # Static sites take no plan, no startCommand, and no healthCheckPath.
   - type: web
     name: agentpurse-web
     runtime: static
-    buildCommand: corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @agentpurse/web... run build
+    buildCommand: corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install --frozen-lockfile && pnpm -r run build
     staticPublishPath: web/dist
