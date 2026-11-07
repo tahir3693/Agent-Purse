@@ -22,11 +22,15 @@ export interface BtResult {
 }
 
 export interface BtCustomerResult extends BtResult {
-  customer?: { id: string; paymentMethods?: Array<{ token: string }> };
+  // TODO(verify): cardType/last4 are Braintree CreditCard fields; absent for non-card methods.
+  customer?: {
+    id: string;
+    paymentMethods?: Array<{ token: string; cardType?: string; last4?: string }>;
+  };
 }
 
 export interface BtPaymentMethodResult extends BtResult {
-  paymentMethod?: { token: string };
+  paymentMethod?: { token: string; cardType?: string; last4?: string };
 }
 
 export interface BtSearchTerm {

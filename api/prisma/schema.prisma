@@ -84,3 +84,15 @@ model WebhookEvent {
   eventId    String   @unique
   receivedAt DateTime @default(now())
 }
+
+model VaultMethod {
+  id        String   @id @default(uuid())
+  ownerId   String
+  customerId String
+  token     String
+  cardType  String?
+  last4     String?
+  createdAt DateTime @default(now())
+  @@unique([ownerId, token])
+  @@index([ownerId, createdAt])
+}

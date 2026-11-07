@@ -12,8 +12,43 @@ import type {
   IntentStore,
   MandateRecord,
   MandateStore,
+  VaultMethodRecord,
+  VaultStore,
   WebhookEventStore,
 } from "./stores.js";
+
+export function createMemoryVaultStore(): VaultStore {
+  const rows: VaultMethodRecord[] = [];
+  return {
+    async create(m) {
+      if (rows.some((r) => r.ownerId === m.ownerId && r.token === m.token)) {
+        throw new Error("Unique constraint: ownerId+token");
+      }
+      const rec: VaultMethodRecord = {
+        id: randomUUID(),
+        ownerId: m.ownerId,
+        customerId: m.customerId,
+        token: m.token,
+        cardType: m.cardType ?? null,
+        last4: m.last4 ?? null,
+        createdAt: new Date(),
+      };
+      rows.push(rec);
+      return { ...rec };
+    },
+    async findByOwnerAndToken(ownerId, token) {
+      const r = rows.find((x) => x.ownerId === ownerId && x.token === token);
+      return r ? { ...r } : null;
+    },
+    async listByOwner(ownerId) {
+      // Insertion order is chronological; reverse for newest first (stable on equal timestamps).
+      return rows
+        .filter((r) => r.ownerId === ownerId)
+        .reverse()
+        .map((r) => ({ ...r }));
+    },
+  };
+}
 
 export function createMemoryIntentStore(): IntentStore {
   const rows = new Map<string, IntentRecord>();

@@ -52,5 +52,10 @@ export interface PaymentProvider {
   linkPaymentMethod(input: {
     ownerId: string;
     nonce: string;
-  }): Promise<{ customerId: string; paymentMethodToken: string }>;
+  }): Promise<{
+    customerId: string;
+    paymentMethodToken: string;
+    cardType?: string;
+    last4?: string;
+  }>;
 }

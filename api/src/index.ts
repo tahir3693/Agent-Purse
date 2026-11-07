@@ -7,6 +7,7 @@ import {
   createPrismaClient,
   createPrismaIntentStore,
   createPrismaMandateStore,
+  createPrismaVaultStore,
   createPrismaWebhookEventStore,
 } from "./db/prisma.js";
 import { createPaymentProvider } from "./payments/factory.js";
@@ -41,6 +42,10 @@ async function main(): Promise<void> {
   if (mandateKey.length < MIN_MANDATE_KEY_LENGTH) {
     fail(`Invalid environment variable: MANDATE_SIGNING_KEY (must be at least ${MIN_MANDATE_KEY_LENGTH} characters)`);
   }
+  const jwtSecret = requireEnv("JWT_SECRET");
+  if (jwtSecret.length < MIN_MANDATE_KEY_LENGTH) {
+    fail(`Invalid environment variable: JWT_SECRET (must be at least ${MIN_MANDATE_KEY_LENGTH} characters)`);
+  }
   requireEnv("ANTHROPIC_API_KEY");
   requireEnv("CHANNEL3_API_KEY");
 
@@ -59,15 +64,22 @@ async function main(): Promise<void> {
     const reviewer = new AnthropicRiskReviewer({ config: anthropic, timeoutMs: AI_TIMEOUT_MS });
 
     const authorizations = createPrismaAuthorizationStore(db);
+    const audit = createPrismaAuditStore(db);
     wiring = {
       paymentProvider,
+      vault: {
+        vault: createPrismaVaultStore(db),
+        audit,
+        provider: paymentProvider,
+        ownerSecret: jwtSecret,
+      },
       webhookEventStore: createPrismaWebhookEventStore(db),
       authorizationStore: authorizations,
       intents: {
         intents: createPrismaIntentStore(db),
         authorizations,
         mandates: createPrismaMandateStore(db),
-        audit: createPrismaAuditStore(db),
+        audit,
         policies: createPrismaAgentPolicyStore(db),
         provider: paymentProvider,
         evaluateRisk: (input: Parameters<typeof evaluateRisk>[1]) =>

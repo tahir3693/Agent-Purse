@@ -118,3 +118,26 @@ export interface AgentPolicyStore {
   findAgentByKeyHash(apiKeyHash: string): Promise<AgentRecord | null>;
   getPolicy(agentId: string): Promise<AgentPolicyRecord | null>;
 }
+
+export interface VaultMethodRecord {
+  id: string;
+  ownerId: string;
+  customerId: string;
+  token: string;
+  cardType: string | null;
+  last4: string | null;
+  createdAt: Date;
+}
+export interface VaultStore {
+  /** Unique on (ownerId, token); a duplicate throws a plain Error. */
+  create(m: {
+    ownerId: string;
+    customerId: string;
+    token: string;
+    cardType?: string | null;
+    last4?: string | null;
+  }): Promise<VaultMethodRecord>;
+  findByOwnerAndToken(ownerId: string, token: string): Promise<VaultMethodRecord | null>;
+  /** Newest first. */
+  listByOwner(ownerId: string): Promise<VaultMethodRecord[]>;
+}

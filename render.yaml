@@ -1,15 +1,18 @@
+# Render Blueprint: API web service + managed Postgres only. The web app is on Vercel.
 databases:
   - name: agentpurse-db
     plan: free
-
 services:
   - type: web
     name: agentpurse-api
     runtime: node
     plan: free
     healthCheckPath: /healthz
-    buildCommand: corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install --frozen-lockfile && pnpm -r run build
-    startCommand: node api/dist/index.js
+    # Install, generate the Prisma client BEFORE tsc, then build only the API and its
+    # workspace dependencies (web/mobile are not built here).
+    buildCommand: corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @agentpurse/api exec prisma generate && pnpm --filter "@agentpurse/api..." run build
+    # preDeployCommand is paid-plan only, so migrations run at start (idempotent).
+    startCommand: ./api/node_modules/.bin/prisma migrate deploy --schema api/prisma/schema.prisma && node api/dist/index.js
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -31,14 +34,6 @@ services:
         sync: false
       - key: WEB_ORIGIN
         sync: false
-      - key: PAYPAL_CLIENT_ID
-        sync: false
-      - key: PAYPAL_CLIENT_SECRET
-        sync: false
-      - key: PAYPAL_WEBHOOK_ID
-        sync: false
-      - key: PAYPAL_BASE_URL
-        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: AI_MODEL
@@ -47,9 +42,3 @@ services:
         sync: false
       - key: APP_BASE_URL
         sync: false
-
-  - type: web
-    name: agentpurse-web
-    runtime: static
-    buildCommand: corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install --frozen-lockfile && pnpm -r run build
-    staticPublishPath: web/dist

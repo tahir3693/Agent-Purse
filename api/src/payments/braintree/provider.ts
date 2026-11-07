@@ -169,16 +169,31 @@ export function createBraintreeProvider(deps: {
           });
           const token = result.paymentMethod?.token;
           if (!result.success || !token) throw failureFrom(result, "linkPaymentMethod");
-          return { customerId: ownerId, paymentMethodToken: token };
+          return {
+            customerId: ownerId,
+            paymentMethodToken: token,
+            ...(result.paymentMethod?.cardType !== undefined
+              ? { cardType: result.paymentMethod.cardType }
+              : {}),
+            ...(result.paymentMethod?.last4 !== undefined
+              ? { last4: result.paymentMethod.last4 }
+              : {}),
+          };
         }
 
         const result = await gateway.customer.create({
           id: ownerId,
           paymentMethodNonce: nonce,
         });
-        const token = result.customer?.paymentMethods?.[0]?.token;
+        const method = result.customer?.paymentMethods?.[0];
+        const token = method?.token;
         if (!result.success || !token) throw failureFrom(result, "linkPaymentMethod");
-        return { customerId: ownerId, paymentMethodToken: token };
+        return {
+          customerId: ownerId,
+          paymentMethodToken: token,
+          ...(method?.cardType !== undefined ? { cardType: method.cardType } : {}),
+          ...(method?.last4 !== undefined ? { last4: method.last4 } : {}),
+        };
       });
     },
 

@@ -8,6 +8,7 @@ import type {
   IntentState,
   IntentStore,
   MandateStore,
+  VaultStore,
   WebhookEventStore,
 } from "./stores.js";
 
@@ -147,5 +148,32 @@ export function createPrismaAgentPolicyStore(db: Db): AgentPolicyStore {
       const r = await db.policy.findUnique({ where: { agentId } });
       return r ? { policy: r.policy, riskConfig: r.riskConfig } : null;
     },
+  };
+}
+
+export function createPrismaVaultStore(db: Db): VaultStore {
+  return {
+    async create(m) {
+      try {
+        return await db.vaultMethod.create({
+          data: {
+            ownerId: m.ownerId,
+            customerId: m.customerId,
+            token: m.token,
+            cardType: m.cardType ?? null,
+            last4: m.last4 ?? null,
+          },
+        });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          throw new Error("Unique constraint: ownerId+token");
+        }
+        throw err;
+      }
+    },
+    findByOwnerAndToken: (ownerId, token) =>
+      db.vaultMethod.findUnique({ where: { ownerId_token: { ownerId, token } } }),
+    listByOwner: (ownerId) =>
+      db.vaultMethod.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
   };
 }
