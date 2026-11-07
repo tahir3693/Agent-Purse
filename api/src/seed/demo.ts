@@ -80,3 +80,51 @@ export async function seedDemo(deps: SeedDeps): Promise<SeedResult> {
     vaultMethodId: linked.method.id,
   };
 }
+
+export const DEMO_PASSWORD_ENV = "DEMO_OWNER_PASSWORD";
+/** Same bounds as POST /auth/register (owners/service.ts CredentialsSchema). */
+export const MIN_PASSWORD_LENGTH = 12;
+export const MAX_PASSWORD_LENGTH = 256;
+
+/** Messages name the variable or the account, never the password. */
+export class SeedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SeedError";
+  }
+}
+
+export interface SetPasswordDeps {
+  owners: OwnerStore;
+  scrypt?: ScryptParams;
+  email?: string;
+}
+
+/**
+ * Sets the existing demo owner's password from DEMO_OWNER_PASSWORD, hashed
+ * with the same scrypt scheme as register. Never returns or logs the password.
+ */
+export async function setDemoOwnerPassword(
+  deps: SetPasswordDeps,
+  env: Record<string, string | undefined>,
+): Promise<{ email: string; ownerId: string }> {
+  const password = env[DEMO_PASSWORD_ENV];
+  if (!password || password.trim() === "") {
+    throw new SeedError(`Missing required environment variable: ${DEMO_PASSWORD_ENV}`);
+  }
+  if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+    throw new SeedError(
+      `Invalid environment variable: ${DEMO_PASSWORD_ENV} (must be ${MIN_PASSWORD_LENGTH} to ${MAX_PASSWORD_LENGTH} characters)`,
+    );
+  }
+  const email = (deps.email ?? DEMO_EMAIL).toLowerCase();
+  const owner = await deps.owners.findByEmail(email);
+  if (!owner) {
+    throw new SeedError(`Demo owner ${email} not found. Run pnpm seed:demo first.`);
+  }
+  const hash = await hashPassword(password, deps.scrypt ?? DEFAULT_SCRYPT);
+  if (!(await deps.owners.setPasswordHash(owner.id, hash))) {
+    throw new SeedError(`Demo owner ${email} not found. Run pnpm seed:demo first.`);
+  }
+  return { email, ownerId: owner.id };
+}

@@ -11,7 +11,8 @@ import {
 import { hashApiKey } from "../../intents/auth.js";
 import { verifyPassword } from "../../owners/password.js";
 import type { PaymentProvider } from "../../payments/types.js";
-import { DEMO_NONCE, DEMO_POLICY, seedDemo } from "../demo.js";
+import { login } from "../../owners/service.js";
+import { DEMO_EMAIL, DEMO_NONCE, DEMO_POLICY, SeedError, seedDemo, setDemoOwnerPassword } from "../demo.js";
 
 const TOKEN = "pm_fake_seed_token_SECRET";
 
@@ -60,5 +61,68 @@ describe("seedDemo", () => {
     expect(second.password).toBeNull();
     expect(second.vaultMethodId).toBe(first.vaultMethodId);
     expect(second.apiKey).not.toBe(first.apiKey);
+  });
+});
+
+describe("setDemoOwnerPassword", () => {
+  const LOW_COST = { N: 2 ** 10, r: 8, p: 1, keyLen: 32 };
+  const NEW_PASSWORD = "test-only-new-demo-password";
+
+  it("updates the existing demo owner with a register-compatible hash and never returns the password", async () => {
+    const { d } = deps();
+    const seeded = await seedDemo(d);
+    const r = await setDemoOwnerPassword(
+      { owners: d.owners, scrypt: LOW_COST },
+      { DEMO_OWNER_PASSWORD: NEW_PASSWORD },
+    );
+    expect(r).toEqual({ email: seeded.email, ownerId: seeded.ownerId });
+    expect(JSON.stringify(r)).not.toContain(NEW_PASSWORD);
+    const owner = await d.owners.findByEmail(seeded.email);
+    expect(owner!.passwordHash.startsWith("scrypt$")).toBe(true);
+    expect(owner!.passwordHash).not.toContain(NEW_PASSWORD);
+    expect(await verifyPassword(NEW_PASSWORD, owner!.passwordHash)).toBe(true);
+    expect(await verifyPassword(seeded.password!, owner!.passwordHash)).toBe(false);
+  });
+
+  it("fails with a message naming the variable when missing or shorter than 12 characters", async () => {
+    const { d } = deps();
+    await seedDemo(d);
+    const before = (await d.owners.findByEmail(DEMO_EMAIL))!.passwordHash;
+    await expect(setDemoOwnerPassword({ owners: d.owners }, {})).rejects.toThrow(
+      "Missing required environment variable: DEMO_OWNER_PASSWORD",
+    );
+    const short = "test-only1";
+    const err = await setDemoOwnerPassword({ owners: d.owners }, { DEMO_OWNER_PASSWORD: short }).catch((e: Error) => e);
+    expect(err).toBeInstanceOf(SeedError);
+    expect((err as Error).message).toContain("DEMO_OWNER_PASSWORD");
+    expect((err as Error).message).toContain("12");
+    expect((err as Error).message).not.toContain(short);
+    expect((await d.owners.findByEmail(DEMO_EMAIL))!.passwordHash).toBe(before);
+  });
+
+  it("fails clearly when the demo owner does not exist", async () => {
+    const { d } = deps();
+    await expect(
+      setDemoOwnerPassword({ owners: d.owners, scrypt: LOW_COST }, { DEMO_OWNER_PASSWORD: NEW_PASSWORD }),
+    ).rejects.toThrow(/not found\. Run pnpm seed:demo first/);
+  });
+
+  it("the new password works with the real login flow", async () => {
+    const { d } = deps();
+    await seedDemo(d);
+    await setDemoOwnerPassword({ owners: d.owners, scrypt: LOW_COST }, { DEMO_OWNER_PASSWORD: NEW_PASSWORD });
+    const r = await login(
+      {
+        owners: d.owners,
+        agents: d.agents,
+        policies: d.agents as never,
+        intents: {} as never,
+        audit: d.audit,
+        jwtSecret: "test-only-jwt-secret-0123456789abcdef",
+        scrypt: LOW_COST,
+      },
+      { email: DEMO_EMAIL, password: NEW_PASSWORD },
+    );
+    expect(r.ownerId).toBeTruthy();
   });
 });

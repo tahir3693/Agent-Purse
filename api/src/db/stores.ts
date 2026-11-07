@@ -131,6 +131,8 @@ export interface OwnerStore {
   /** Lowercases the lookup email. */
   findByEmail(email: string): Promise<OwnerRecord | null>;
   findById(id: string): Promise<OwnerRecord | null>;
+  /** Replaces the stored hash. Returns false if the owner does not exist. */
+  setPasswordHash(id: string, passwordHash: string): Promise<boolean>;
 }
 
 export interface AgentAdminStore {

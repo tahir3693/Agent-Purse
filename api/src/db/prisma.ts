@@ -187,6 +187,10 @@ export function createPrismaOwnerStore(db: Db): OwnerStore {
     findByEmail: (email) =>
       db.owner.findUnique({ where: { email: email.toLowerCase() } }),
     findById: (id) => db.owner.findUnique({ where: { id } }),
+    async setPasswordHash(id, passwordHash) {
+      const r = await db.owner.updateMany({ where: { id }, data: { passwordHash } });
+      return r.count === 1;
+    },
   };
 }
 

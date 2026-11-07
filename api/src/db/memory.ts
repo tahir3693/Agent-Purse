@@ -296,5 +296,11 @@ export function createMemoryOwnerStore(): OwnerStore {
       const r = rows.find((x) => x.id === id);
       return r ? { ...r } : null;
     },
+    async setPasswordHash(id, passwordHash) {
+      const r = rows.find((x) => x.id === id);
+      if (!r) return false;
+      r.passwordHash = passwordHash;
+      return true;
+    },
   };
 }

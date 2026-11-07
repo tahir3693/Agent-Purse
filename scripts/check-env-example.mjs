@@ -33,6 +33,7 @@ const NON_SECRET = new Set([
   "WEB_ORIGIN",
   "NEXT_PUBLIC_API_BASE_URL",
   "PAYPAL_BASE_URL",
+  "DEMO_API_BASE_URL",
 ]);
 
 // Key-shaped values: embedded URL credentials, common key prefixes, long opaque tokens.
@@ -50,8 +51,9 @@ function isPlaceholder(raw) {
   if (v === "") return true;
   if (v.length > MAX_LEN) return false;
   if (SAFE_LITERALS.has(v)) return true;
-  // replace-with-..., your-...-key
-  if (/^(replace|your)[-_a-z0-9]*$/i.test(v)) return true;
+  // Only the explicit marker shape: "replace-with-" + lowercase words, no digits
+  // or symbols, so a pasted password or key never looks like a placeholder.
+  if (/^replace-with-[a-z]+(-[a-z]+)*$/.test(v)) return true;
   // Generic connection string template: USER:PASSWORD@HOST
   if (
     /^[a-z][a-z0-9+.-]*:\/\/USER:PASSWORD@HOST(:\d+)?(\/[A-Za-z0-9_]*)?$/.test(
