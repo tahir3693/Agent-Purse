@@ -1,7 +1,5 @@
-# Render Blueprint: API web service + managed Postgres only. The web app is on Vercel.
-databases:
-  - name: agentpurse-db
-    plan: free
+# Render Blueprint: API web service only. Postgres is external (DATABASE_URL secret).
+# The web app is on Vercel.
 services:
   - type: web
     name: agentpurse-api
@@ -15,9 +13,7 @@ services:
     startCommand: ./api/node_modules/.bin/prisma migrate deploy --schema api/prisma/schema.prisma && node api/dist/index.js
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: agentpurse-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: MANDATE_SIGNING_KEY
