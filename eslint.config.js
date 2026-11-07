@@ -19,5 +19,14 @@ export default tseslint.config(
       ecmaVersion: 2022,
       sourceType: "module",
     },
+  },
+  // Node helper scripts (plain ESM).
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: { process: "readonly", console: "readonly", URL: "readonly" },
+    },
   }
 );

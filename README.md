@@ -65,6 +65,19 @@ This repository is **public** and licensed under the **MIT license**. The full M
 
 The UI and assets contain **no third-party logos or trademarks**. Only **first-party assets** or assets that have been **explicitly license-cleared** are permitted anywhere in the repository.
 
+## Database migrations and demo seed
+
+Migrations live in `api/prisma/migrations` and are applied with `prisma migrate deploy`, which only runs the committed SQL. It never resets or drops data. The command reads `DATABASE_URL` from the root `.env`:
+
+```sh
+pnpm install            # also installs the tracked pre-commit hook (prepare script)
+pnpm db:migrate         # = prisma migrate deploy against DATABASE_URL in the root .env
+pnpm seed:demo          # demo owner, one agent with a policy, vaulted sandbox card
+```
+
+`DATABASE_URL` is the only URL the app reads. If your provider gives you a pooled `DATABASE_URL` and migrations need a direct connection, run `pnpm db:migrate` once with `DATABASE_URL` temporarily set to your `DIRECT_URL` value. On Render, `render.yaml` already runs `prisma migrate deploy` in the start command, so the new migration applies on the next deploy.
+
+`seed:demo` prints the demo owner login, the agent API key and the vault method id (use it as `paymentMethodRef`) once. It never prints the provider token or any environment value. Re-running it keeps the existing owner and creates a new agent key.
 ## Smoke tests
 
 Smoke scripts run against the live sandbox APIs to confirm end-to-end wiring. They are not part of the test suite (tests use fixtures) and never print secret values. They auto-load the root `.env`.

@@ -12,6 +12,8 @@
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "db:migrate": "node --env-file-if-exists=../.env node_modules/prisma/build/index.js migrate deploy",
+    "seed:demo": "node --env-file-if-exists=../.env --import tsx src/seed/cli.ts",
     "channel3:smoke": "node --env-file-if-exists=../.env --import tsx src/channel3/smoke.ts",
     "payments:smoke": "node --env-file-if-exists=../.env --import tsx src/payments/smoke.ts",
     "paypal:smoke": "node --env-file-if-exists=../.env --import tsx src/paypal/smoke.ts"

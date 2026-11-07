@@ -11,9 +11,12 @@
     "format": "prettier --write \"**/*.{ts,json,md}\"",
     "typecheck": "pnpm -r run typecheck",
     "check:env-example": "node scripts/check-env-example.mjs",
+    "scan:staged": "node scripts/scan-staged.mjs",
     "prepare": "node scripts/install-hooks.mjs",
     "test": "vitest run",
     "build": "pnpm -r run build",
+    "seed:demo": "pnpm --filter @agentpurse/api seed:demo",
+    "db:migrate": "pnpm --filter @agentpurse/api db:migrate",
     "channel3:smoke": "pnpm --filter @agentpurse/api channel3:smoke",
     "payments:smoke": "pnpm --filter @agentpurse/api payments:smoke",
     "paypal:smoke": "pnpm --filter @agentpurse/api paypal:smoke"

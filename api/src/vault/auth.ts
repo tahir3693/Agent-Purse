@@ -1,6 +1,6 @@
 // Owner bearer-JWT verification (spec-06): HS256 on node:crypto only.
 // Tokens are never logged or echoed; failure bodies are constant.
-// TODO(verify): owner login/JWT issuance is a later slice; tokens are verified only.
+// Access tokens carry no `scp`; SSE stream tokens carry scp:"sse". Each is rejected on the other path.
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
@@ -10,11 +10,12 @@ const OwnerClaimsSchema = z.object({
   sub: z.string().min(1),
   iat: z.number().int(),
   exp: z.number().int(),
+  scp: z.string().optional(),
 });
 
 export type OwnerClaims = z.infer<typeof OwnerClaimsSchema>;
 
-export type OwnerVerifyFailure = "malformed" | "bad_alg" | "bad_signature" | "expired";
+export type OwnerVerifyFailure = "malformed" | "bad_alg" | "bad_signature" | "expired" | "bad_scope";
 
 export type OwnerVerifyResult =
   | { ok: true; claims: OwnerClaims }
@@ -35,6 +36,7 @@ export function verifyOwnerToken(
   token: string,
   secret: string,
   nowSeconds: number,
+  opts: { scope?: string } = {},
 ): OwnerVerifyResult {
   if (typeof token !== "string" || !secret) return { ok: false, reason: "malformed" };
   const parts = token.split(".");
@@ -62,6 +64,7 @@ export function verifyOwnerToken(
   const claims = OwnerClaimsSchema.safeParse(parseJson(p));
   if (!claims.success) return { ok: false, reason: "malformed" };
   if (nowSeconds >= claims.data.exp) return { ok: false, reason: "expired" };
+  if (claims.data.scp !== opts.scope) return { ok: false, reason: "bad_scope" };
   return { ok: true, claims: claims.data };
 }
 

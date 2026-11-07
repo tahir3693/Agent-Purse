@@ -1,7 +1,9 @@
 import { buildChannel3Client, createChannel3Module } from "./channel3/index.js";
 import { loadConfig } from "./config.js";
 import {
+  createPrismaAgentAdminStore,
   createPrismaAgentPolicyStore,
+  createPrismaOwnerStore,
   createPrismaAuditStore,
   createPrismaAuthorizationStore,
   createPrismaClient,
@@ -10,6 +12,7 @@ import {
   createPrismaVaultStore,
   createPrismaWebhookEventStore,
 } from "./db/prisma.js";
+import { createEventBus } from "./events/bus.js";
 import { createPaymentProvider } from "./payments/factory.js";
 import { AnthropicRiskReviewer } from "./risk/anthropic.js";
 import { loadAnthropicConfig } from "./risk/config.js";
@@ -65,10 +68,19 @@ async function main(): Promise<void> {
 
     const authorizations = createPrismaAuthorizationStore(db);
     const audit = createPrismaAuditStore(db);
+    const vaultStore = createPrismaVaultStore(db);
+    const agents = createPrismaAgentAdminStore(db);
+    const policies = createPrismaAgentPolicyStore(db);
+    const intentStore = createPrismaIntentStore(db);
+    const bus = createEventBus();
+    const webOrigins = [
+      ...(env["WEB_ORIGIN"] ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+      "http://localhost:3000",
+    ];
     wiring = {
       paymentProvider,
       vault: {
-        vault: createPrismaVaultStore(db),
+        vault: vaultStore,
         audit,
         provider: paymentProvider,
         ownerSecret: jwtSecret,
@@ -76,11 +88,15 @@ async function main(): Promise<void> {
       webhookEventStore: createPrismaWebhookEventStore(db),
       authorizationStore: authorizations,
       intents: {
-        intents: createPrismaIntentStore(db),
+        intents: intentStore,
         authorizations,
         mandates: createPrismaMandateStore(db),
         audit,
-        policies: createPrismaAgentPolicyStore(db),
+        policies,
+        vault: vaultStore,
+        agents,
+        events: bus,
+        ownerSecret: jwtSecret,
         provider: paymentProvider,
         evaluateRisk: (input: Parameters<typeof evaluateRisk>[1]) =>
           evaluateRisk(
@@ -89,6 +105,15 @@ async function main(): Promise<void> {
           ),
         mandateKey,
       },
+      owners: {
+        owners: createPrismaOwnerStore(db),
+        agents,
+        policies,
+        intents: intentStore,
+        audit,
+        jwtSecret,
+      },
+      events: { bus, jwtSecret, allowedOrigins: webOrigins },
     };
   } catch (err) {
     // Config errors name the variable only, never a value.

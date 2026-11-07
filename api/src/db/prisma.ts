@@ -1,6 +1,8 @@
 // Prisma client factory and store implementations. Prisma types stay in this file.
 import { Prisma, PrismaClient } from "@prisma/client";
 import type {
+  AgentAdminStore,
+  OwnerStore,
   AgentPolicyStore,
   AuditStore,
   AuthorizationStore,
@@ -15,7 +17,9 @@ import type {
 export type Db = PrismaClient;
 
 /** Creates a client. Fails by naming DATABASE_URL if it is missing. */
-export function createPrismaClient(databaseUrl = process.env["DATABASE_URL"]): Db {
+export function createPrismaClient(
+  databaseUrl = process.env["DATABASE_URL"]
+): Db {
   if (!databaseUrl) {
     throw new Error("Missing required environment variable: DATABASE_URL");
   }
@@ -64,13 +68,27 @@ export function createPrismaIntentStore(db: Db): IntentStore {
       });
       return rows.map(toIntent);
     },
+    async listByAgents(agentIds, opts) {
+      if (agentIds.length === 0) return [];
+      const rows = await db.intent.findMany({
+        where: {
+          agentId: { in: agentIds },
+          ...(opts.state ? { state: opts.state } : {}),
+          ...(opts.since ? { createdAt: { gte: opts.since } } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        take: opts.limit,
+      });
+      return rows.map(toIntent);
+    },
   };
 }
 
 export function createPrismaAuthorizationStore(db: Db): AuthorizationStore {
   return {
     create: (data) => db.authorization.create({ data }),
-    getByIntent: (intentId) => db.authorization.findUnique({ where: { intentId } }),
+    getByIntent: (intentId) =>
+      db.authorization.findUnique({ where: { intentId } }),
     async updateStatusByProviderTxnId(providerTxnId, status) {
       const r = await db.authorization.updateMany({
         where: { providerTxnId },
@@ -128,11 +146,80 @@ export function createPrismaWebhookEventStore(db: Db): WebhookEventStore {
         await db.webhookEvent.create({ data: { eventId } });
         return true;
       } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
           return false;
         }
         throw err;
       }
+    },
+  };
+}
+
+const agentSelect = {
+  id: true,
+  apiKeyHash: true,
+  killed: true,
+  ownerId: true,
+  name: true,
+  createdAt: true,
+} as const;
+
+export function createPrismaOwnerStore(db: Db): OwnerStore {
+  return {
+    async create({ email, passwordHash }) {
+      try {
+        return await db.owner.create({
+          data: { email: email.toLowerCase(), passwordHash },
+        });
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
+          throw new Error("Unique constraint: email");
+        }
+        throw err;
+      }
+    },
+    findByEmail: (email) =>
+      db.owner.findUnique({ where: { email: email.toLowerCase() } }),
+    findById: (id) => db.owner.findUnique({ where: { id } }),
+  };
+}
+
+export function createPrismaAgentAdminStore(db: Db): AgentAdminStore {
+  return {
+    create: ({ ownerId, name, apiKeyHash }) =>
+      db.agent.create({
+        data: { ownerId, name, apiKeyHash },
+        select: agentSelect,
+      }),
+    listByOwner: (ownerId) =>
+      db.agent.findMany({
+        where: { ownerId },
+        orderBy: { createdAt: "desc" },
+        select: agentSelect,
+      }),
+    getForOwner: (id, ownerId) =>
+      db.agent.findFirst({ where: { id, ownerId }, select: agentSelect }),
+    async setKilled(id, ownerId, killed) {
+      const r = await db.agent.updateMany({
+        where: { id, ownerId },
+        data: { killed },
+      });
+      return r.count === 1;
+    },
+    async setPolicy(agentId, policy, riskConfig) {
+      const p = policy as Prisma.InputJsonValue;
+      const rc = riskConfig as Prisma.InputJsonValue;
+      await db.policy.upsert({
+        where: { agentId },
+        create: { agentId, policy: p, riskConfig: rc },
+        update: { policy: p, riskConfig: rc },
+      });
     },
   };
 }
@@ -142,7 +229,13 @@ export function createPrismaAgentPolicyStore(db: Db): AgentPolicyStore {
     findAgentByKeyHash: (apiKeyHash) =>
       db.agent.findUnique({
         where: { apiKeyHash },
-        select: { id: true, apiKeyHash: true, killed: true },
+        select: {
+          id: true,
+          apiKeyHash: true,
+          killed: true,
+          ownerId: true,
+          name: true,
+        },
       }),
     async getPolicy(agentId) {
       const r = await db.policy.findUnique({ where: { agentId } });
@@ -165,15 +258,25 @@ export function createPrismaVaultStore(db: Db): VaultStore {
           },
         });
       } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
           throw new Error("Unique constraint: ownerId+token");
         }
         throw err;
       }
     },
     findByOwnerAndToken: (ownerId, token) =>
-      db.vaultMethod.findUnique({ where: { ownerId_token: { ownerId, token } } }),
+      db.vaultMethod.findUnique({
+        where: { ownerId_token: { ownerId, token } },
+      }),
     listByOwner: (ownerId) =>
-      db.vaultMethod.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
+      db.vaultMethod.findMany({
+        where: { ownerId },
+        orderBy: { createdAt: "desc" },
+      }),
+    findByIdForOwner: (id, ownerId) =>
+      db.vaultMethod.findFirst({ where: { id, ownerId } }),
   };
 }

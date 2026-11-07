@@ -15,6 +15,8 @@ export interface IssueMandateDeps {
   key: string;
   now: Date;
   ttlSeconds?: number;
+  /** Optional fixed jti; a duplicate makes store.create throw (one mandate per key). */
+  jti?: string;
 }
 
 export async function issueMandate(
@@ -24,7 +26,7 @@ export async function issueMandate(
   const ttl = deps.ttlSeconds ?? 300;
   const iat = Math.floor(deps.now.getTime() / 1000);
   const exp = iat + ttl;
-  const claims: MandateClaims = { jti: randomUUID(), ...input, iat, exp };
+  const claims: MandateClaims = { jti: deps.jti ?? randomUUID(), ...input, iat, exp };
   // Sign first so an invalid ttl or claim never leaves a stored row behind.
   const token = signMandate(claims, deps.key, deps.now);
   const expiresAt = new Date(exp * 1000);

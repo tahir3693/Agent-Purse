@@ -2,13 +2,18 @@
 // No live calls. All keys are obviously fake.
 
 import {
-  createMemoryAgentPolicyStore,
+  createMemoryAgentRegistry,
   createMemoryAuditStore,
   createMemoryAuthorizationStore,
   createMemoryIntentStore,
   createMemoryMandateStore,
+  createMemoryOwnerStore,
+  createMemoryVaultStore,
   createMemoryWebhookEventStore,
 } from "../../db/memory.js";
+import { createEventBus, type OwnerEvent } from "../../events/bus.js";
+import { Writable } from "node:stream";
+import { signOwnerToken } from "../../owners/tokens.js";
 import { buildServer } from "../../server.js";
 import type {
   AuthorizeInput,
@@ -18,12 +23,20 @@ import type {
 } from "../../payments/types.js";
 import type { RiskDecision, RiskInput } from "../../risk/index.js";
 import { hashApiKey } from "../auth.js";
-import type { IntentDeps } from "../service.js";
+import type { IntentRoutesDeps } from "../routes.js";
 
 export const TEST_MANDATE_KEY = "test-only-mandate-signing-key-0123456789abcdef";
 export const AGENT_KEY = "test-only-agent-api-key-aaaaaaaaaaaaaaaaaaaa";
 export const OTHER_AGENT_KEY = "test-only-agent-api-key-bbbbbbbbbbbbbbbbbbbb";
 export const KILLED_AGENT_KEY = "test-only-agent-api-key-cccccccccccccccccccc";
+export const OWNERLESS_AGENT_KEY = "test-only-agent-api-key-dddddddddddddddddddd";
+export const OWNER_ID = "owner-1";
+export const OTHER_OWNER_ID = "owner-2";
+export const TEST_OWNER_SECRET = "test-only-owner-jwt-secret-0123456789abcdef";
+/** Vault method ids; the provider tokens behind them never appear in requests. */
+export const VAULT_METHOD_ID = "vm-test-1";
+export const OTHER_OWNER_METHOD_ID = "vm-test-2";
+export const RAW_PROVIDER_TOKEN = "pm_fake_token";
 
 export const VALID_POLICY = {
   dailyBudgetCents: 100_000,
@@ -46,7 +59,7 @@ export const validBody = {
   category: "office",
   description: INTENT_TEXT.description,
   justification: INTENT_TEXT.justification,
-  paymentMethodRef: "pm_fake_token",
+  paymentMethodRef: VAULT_METHOD_ID,
 };
 
 export interface ProviderScript {
@@ -133,24 +146,55 @@ export function createHarness(opts: HarnessOptions = {}) {
     mandates: createMemoryMandateStore(),
     audit: createMemoryAuditStore(),
     webhookEvents: createMemoryWebhookEventStore(),
-    policies: createMemoryAgentPolicyStore([
+    vault: createMemoryVaultStore([
       {
-        agent: { id: "agent-1", apiKeyHash: hashApiKey(AGENT_KEY), killed: false },
-        policy: { policy: VALID_POLICY, riskConfig: {} },
+        id: VAULT_METHOD_ID,
+        ownerId: OWNER_ID,
+        customerId: "cust_fake_1",
+        token: RAW_PROVIDER_TOKEN,
+        cardType: "Visa",
+        last4: "1111",
+        createdAt: new Date(0),
       },
       {
-        agent: { id: "agent-2", apiKeyHash: hashApiKey(OTHER_AGENT_KEY), killed: false },
-        policy: { policy: VALID_POLICY, riskConfig: {} },
-      },
-      {
-        agent: { id: "agent-3", apiKeyHash: hashApiKey(KILLED_AGENT_KEY), killed: true },
-        policy: { policy: VALID_POLICY, riskConfig: {} },
+        id: OTHER_OWNER_METHOD_ID,
+        ownerId: OTHER_OWNER_ID,
+        customerId: "cust_fake_2",
+        token: "pm_other_owner_token",
+        cardType: "Visa",
+        last4: "2222",
+        createdAt: new Date(0),
       },
     ]),
   };
+  const registry = createMemoryAgentRegistry([
+    {
+      agent: { id: "agent-1", apiKeyHash: hashApiKey(AGENT_KEY), killed: false, ownerId: OWNER_ID },
+      policy: { policy: VALID_POLICY, riskConfig: {} },
+    },
+    {
+      agent: { id: "agent-2", apiKeyHash: hashApiKey(OTHER_AGENT_KEY), killed: false, ownerId: OWNER_ID },
+      policy: { policy: VALID_POLICY, riskConfig: {} },
+    },
+    {
+      agent: { id: "agent-3", apiKeyHash: hashApiKey(KILLED_AGENT_KEY), killed: true, ownerId: OWNER_ID },
+      policy: { policy: VALID_POLICY, riskConfig: {} },
+    },
+    {
+      agent: { id: "agent-4", apiKeyHash: hashApiKey(OWNERLESS_AGENT_KEY), killed: false, ownerId: null },
+      policy: { policy: VALID_POLICY, riskConfig: {} },
+    },
+  ]);
+  const bus = createEventBus(() => new Date(clock.ms));
+  const events: { ownerId: string; event: OwnerEvent }[] = [];
+  for (const o of [OWNER_ID, OTHER_OWNER_ID]) bus.subscribe(o, (event) => events.push({ ownerId: o, event }));
 
-  const deps: IntentDeps = {
+  const deps: IntentRoutesDeps = {
     ...stores,
+    policies: registry.policyStore,
+    agents: registry.adminStore,
+    events: bus,
+    ownerSecret: TEST_OWNER_SECRET,
     provider,
     mandateKey: TEST_MANDATE_KEY,
     now: () => new Date(clock.ms),
@@ -161,12 +205,37 @@ export function createHarness(opts: HarnessOptions = {}) {
     },
   };
 
+  let logs = "";
+  const logStream = new Writable({
+    write(chunk, _enc, cb) {
+      logs += chunk.toString();
+      cb();
+    },
+  });
+  const owners = createMemoryOwnerStore();
+  const now = () => new Date(clock.ms);
   const app = buildServer({
     intents: deps,
     paymentProvider: provider,
     webhookEventStore: stores.webhookEvents,
     authorizationStore: stores.authorizations,
+    owners: {
+      owners,
+      agents: registry.adminStore,
+      policies: registry.policyStore,
+      intents: stores.intents,
+      audit: stores.audit,
+      jwtSecret: TEST_OWNER_SECRET,
+      // Low scrypt cost for fast tests only.
+      scrypt: { N: 2 ** 10, r: 8, p: 1, keyLen: 32 },
+      now,
+    },
+    events: { bus, jwtSecret: TEST_OWNER_SECRET, allowedOrigins: ["http://localhost:3000"], now },
+    logStream,
   });
+
+  const ownerToken = (ownerId = OWNER_ID) => signOwnerToken(ownerId, TEST_OWNER_SECRET, now()).token;
+  const asOwner = (ownerId = OWNER_ID) => ({ authorization: `Bearer ${ownerToken(ownerId)}` });
 
   const auth = (key = AGENT_KEY) => ({ authorization: `Bearer ${key}` });
 
@@ -186,7 +255,24 @@ export function createHarness(opts: HarnessOptions = {}) {
       payload: { mandateToken: token } as object,
     });
 
-  return { app, deps, stores, provider, clock, state, riskCalls, create, execute };
+  return {
+    app,
+    deps,
+    stores,
+    registry,
+    owners,
+    bus,
+    events,
+    provider,
+    clock,
+    state,
+    riskCalls,
+    create,
+    execute,
+    ownerToken,
+    asOwner,
+    logs: () => logs,
+  };
 }
 
 export type Harness = ReturnType<typeof createHarness>;

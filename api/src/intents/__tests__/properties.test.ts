@@ -48,7 +48,7 @@ describe("spec-08 properties", () => {
             category: "office",
             description: "item",
             justification: "because",
-            paymentMethodRef: "pm_fake_token",
+            paymentMethodRef: "vm-test-1",
           });
           expect(res.statusCode).toBe(200);
           expect(h.provider.authorizeCalls).toHaveLength(0);

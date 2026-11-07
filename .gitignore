@@ -30,3 +30,11 @@ Thumbs.db
 .vercel/
 .env*.local
 .env.vercel*
+
+# Next.js output, keys, database dumps
+.next/
+out/
+*.pem
+*.key
+*.dump
+*.tsbuildinfo

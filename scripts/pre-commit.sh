@@ -1,4 +1,5 @@
 #!/bin/sh
+node scripts/scan-staged.mjs || exit 1
 # Fails the commit if the STAGED .env.example has non-placeholder values, or .env is staged.
 # Prints variable names only. Source: scripts/check-env-example.mjs
 if git diff --cached --name-only | grep -qx '.env'; then

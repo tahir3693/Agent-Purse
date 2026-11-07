@@ -39,10 +39,15 @@ export interface IntentStore {
   getForAgent(id: string, agentId: string): Promise<IntentRecord | null>;
   update(
     id: string,
-    patch: Partial<Pick<IntentRecord, "state" | "decision" | "riskScore">>,
+    patch: Partial<Pick<IntentRecord, "state" | "decision" | "riskScore">>
   ): Promise<IntentRecord>;
   /** Recent authorized/captured intents for risk history. */
   listRecentForAgent(agentId: string, limit: number): Promise<IntentRecord[]>;
+  /** Intents of the given agents, newest first. Empty agentIds => []. */
+  listByAgents(
+    agentIds: string[],
+    opts: { state?: IntentState; since?: Date; limit: number }
+  ): Promise<IntentRecord[]>;
 }
 
 export interface AuthorizationRecord {
@@ -59,7 +64,10 @@ export interface AuthorizationStore {
     status: string;
   }): Promise<AuthorizationRecord>;
   getByIntent(intentId: string): Promise<AuthorizationRecord | null>;
-  updateStatusByProviderTxnId(providerTxnId: string, status: string): Promise<number>;
+  updateStatusByProviderTxnId(
+    providerTxnId: string,
+    status: string
+  ): Promise<number>;
 }
 
 export interface MandateRecord {
@@ -106,6 +114,46 @@ export interface AgentRecord {
   id: string;
   apiKeyHash: string;
   killed: boolean;
+  ownerId?: string | null;
+  name?: string;
+}
+
+export interface OwnerRecord {
+  id: string;
+  email: string;
+  passwordHash: string;
+  createdAt: Date;
+}
+
+export interface OwnerStore {
+  /** Email is stored lowercased. Duplicate throws plain Error('Unique constraint: email'). */
+  create(input: { email: string; passwordHash: string }): Promise<OwnerRecord>;
+  /** Lowercases the lookup email. */
+  findByEmail(email: string): Promise<OwnerRecord | null>;
+  findById(id: string): Promise<OwnerRecord | null>;
+}
+
+export interface AgentAdminStore {
+  create(input: {
+    ownerId: string;
+    name: string;
+    apiKeyHash: string;
+  }): Promise<AgentRecord & { createdAt: Date }>;
+  /** Newest first. */
+  listByOwner(ownerId: string): Promise<(AgentRecord & { createdAt: Date })[]>;
+  /** null if the agent does not belong to ownerId. */
+  getForOwner(
+    id: string,
+    ownerId: string
+  ): Promise<(AgentRecord & { createdAt: Date }) | null>;
+  /** false if the agent does not belong to ownerId. */
+  setKilled(id: string, ownerId: string, killed: boolean): Promise<boolean>;
+  /** Upsert. Callers validate policy/riskConfig first. */
+  setPolicy(
+    agentId: string,
+    policy: unknown,
+    riskConfig: unknown
+  ): Promise<void>;
 }
 
 export interface AgentPolicyRecord {
@@ -137,7 +185,15 @@ export interface VaultStore {
     cardType?: string | null;
     last4?: string | null;
   }): Promise<VaultMethodRecord>;
-  findByOwnerAndToken(ownerId: string, token: string): Promise<VaultMethodRecord | null>;
+  findByOwnerAndToken(
+    ownerId: string,
+    token: string
+  ): Promise<VaultMethodRecord | null>;
   /** Newest first. */
   listByOwner(ownerId: string): Promise<VaultMethodRecord[]>;
+  /** Returns the method only if it belongs to ownerId. */
+  findByIdForOwner(
+    id: string,
+    ownerId: string
+  ): Promise<VaultMethodRecord | null>;
 }

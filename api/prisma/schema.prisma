@@ -8,14 +8,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Owner {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  agents Agent[]
+}
+
 model Agent {
   id         String   @id @default(uuid())
   apiKeyHash String   @unique
   killed     Boolean  @default(false)
+  ownerId    String?
+  name       String   @default("agent")
   createdAt  DateTime @default(now())
 
+  owner   Owner?   @relation(fields: [ownerId], references: [id])
   policy  Policy?
   intents Intent[]
+
+  @@index([ownerId])
 }
 
 model Policy {
