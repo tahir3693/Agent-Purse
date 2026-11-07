@@ -5,17 +5,19 @@
 // does not affect other routes. Behaviour (Requirements 4.1-4.4):
 //   - parseWebhook error (bad/missing signature or payload) -> 400 (fail closed)
 //   - duplicate key -> 200 { status: "duplicate" }
-//   - new key       -> markSeen, 200 { status: "ok" }
+//   - new key       -> claim (atomic), 200 { status: "ok" }
 // Nothing from the request body is logged.
 
 import type { FastifyInstance } from "fastify";
 
-import type { SeenKeyStore } from "./dedupe.js";
+import type { AuthorizationStore, WebhookEventStore } from "../db/stores.js";
 import type { PaymentProvider } from "./types.js";
 
 export interface PaymentsWebhookRouteDeps {
   provider: PaymentProvider;
-  store: SeenKeyStore;
+  store: WebhookEventStore;
+  /** Optional: when provided, verified events update authorization status. */
+  authorizations?: Pick<AuthorizationStore, "updateStatusByProviderTxnId">;
 }
 
 export function registerPaymentsWebhookRoute(
@@ -56,11 +58,17 @@ export function registerPaymentsWebhookRoute(
         return reply.code(400).send({ error: "invalid_webhook" });
       }
 
-      if (deps.store.seen(event.key)) {
+      // Claim only after the signature verified (never claim on parse failure).
+      const claimed = await deps.store.claim(event.key);
+      if (!claimed) {
         return reply.code(200).send({ status: "duplicate" });
       }
-      deps.store.markSeen(event.key);
-      // TODO(spec-08): persist WebhookEvent and update payment status/audit log.
+      if (deps.authorizations && event.transactionId && event.status) {
+        await deps.authorizations.updateStatusByProviderTxnId(
+          event.transactionId,
+          event.status,
+        );
+      }
       return reply.code(200).send({ status: "ok" });
     });
   });

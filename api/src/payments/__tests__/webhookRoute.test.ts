@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { buildBraintreeGateway } from "../braintree/gateway.js";
 import { createBraintreeProvider } from "../braintree/provider.js";
-import { createSeenKeyStore } from "../dedupe.js";
+import { createMemoryWebhookEventStore } from "../../db/memory.js";
 import { registerPaymentsWebhookRoute } from "../routes.js";
 import type { PaymentProvider } from "../types.js";
 
@@ -77,7 +77,7 @@ describe("BraintreeProvider.parseWebhook (real SDK, offline)", () => {
 describe("POST /webhooks/payments", () => {
   async function build(provider: PaymentProvider = realProvider()) {
     const app = Fastify();
-    registerPaymentsWebhookRoute(app, { provider, store: createSeenKeyStore() });
+    registerPaymentsWebhookRoute(app, { provider, store: createMemoryWebhookEventStore() });
     await app.ready();
     return app;
   }
@@ -130,9 +130,9 @@ describe("POST /webhooks/payments", () => {
     await app.close();
   });
 
-  it("does not mark a key seen when parsing fails", async () => {
-    const store = createSeenKeyStore();
-    const markSpy = vi.spyOn(store, "markSeen");
+  it("does not claim a key when parsing fails", async () => {
+    const store = createMemoryWebhookEventStore();
+    const claimSpy = vi.spyOn(store, "claim");
     const app = Fastify();
     registerPaymentsWebhookRoute(app, { provider: realProvider(), store });
     await app.ready();
@@ -142,7 +142,7 @@ describe("POST /webhooks/payments", () => {
       headers,
       payload: form({ bt_signature: "x", bt_payload: "y" }),
     });
-    expect(markSpy).not.toHaveBeenCalled();
+    expect(claimSpy).not.toHaveBeenCalled();
     await app.close();
   });
 });

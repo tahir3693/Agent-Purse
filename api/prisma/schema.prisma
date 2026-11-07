@@ -1,0 +1,86 @@
+// AgentPurse persistence (spec-08). Money = Int cents + currency code. No floats.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id         String   @id @default(uuid())
+  apiKeyHash String   @unique
+  killed     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  policy  Policy?
+  intents Intent[]
+}
+
+model Policy {
+  agentId    String @id
+  policy     Json
+  riskConfig Json
+  agent      Agent  @relation(fields: [agentId], references: [id])
+}
+
+model Intent {
+  id               String   @id @default(uuid())
+  agentId          String
+  amountCents      Int
+  currency         String
+  payee            String
+  category         String
+  description      String
+  justification    String
+  paymentMethodRef String
+  state            String   @default("pending")
+  decision         String?
+  riskScore        Int?
+  createdAt        DateTime @default(now())
+
+  agent         Agent          @relation(fields: [agentId], references: [id])
+  authorization Authorization?
+  mandates      Mandate[]
+  auditLogs     AuditLog[]
+
+  @@index([agentId, createdAt])
+}
+
+model Authorization {
+  id            String @id @default(uuid())
+  intentId      String @unique
+  providerTxnId String
+  status        String
+  intent        Intent @relation(fields: [intentId], references: [id])
+
+  @@index([providerTxnId])
+}
+
+model Mandate {
+  jti        String    @id
+  intentId   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  intent     Intent    @relation(fields: [intentId], references: [id])
+
+  @@index([intentId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  intentId  String?
+  event     String
+  meta      Json
+  createdAt DateTime @default(now())
+  intent    Intent?  @relation(fields: [intentId], references: [id])
+
+  @@index([intentId, createdAt])
+}
+
+model WebhookEvent {
+  id         String   @id @default(uuid())
+  eventId    String   @unique
+  receivedAt DateTime @default(now())
+}

@@ -16,5 +16,3 @@ export { loadPaymentsConfig } from "./config.js";
 export type { PaymentsConfig, BraintreeConfig } from "./config.js";
 export { createPaymentProvider } from "./factory.js";
 export type { PaymentProviderDeps } from "./factory.js";
-export { createSeenKeyStore } from "./dedupe.js";
-export type { SeenKeyStore } from "./dedupe.js";
