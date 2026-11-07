@@ -26,3 +26,7 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+# Vercel CLI (`vercel env pull` output)
+.vercel/
+.env*.local
+.env.vercel*
