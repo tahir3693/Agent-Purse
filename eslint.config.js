@@ -7,7 +7,7 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   // Ignore build artifacts and dependencies so lint focuses on source.
   {
-    ignores: ["**/node_modules/**", "**/dist/**", "**/build/**"],
+    ignores: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**", "web/next-env.d.ts"],
   },
   // Base recommended JS rules.
   eslint.configs.recommended,

@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     // Discover test files across the root `test/` dir and every workspace.
     include: ["test/**/*.{test,spec}.ts", "**/*.{test,spec}.ts"],
-    exclude: ["**/node_modules/**", "**/dist/**", "**/build/**"],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**"],
     environment: "node",
   },
 });

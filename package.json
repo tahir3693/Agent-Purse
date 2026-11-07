@@ -12,6 +12,7 @@
     "typecheck": "pnpm -r run typecheck",
     "check:env-example": "node scripts/check-env-example.mjs",
     "scan:staged": "node scripts/scan-staged.mjs",
+    "check:web-bundle": "node scripts/check-web-bundle.mjs",
     "prepare": "node scripts/install-hooks.mjs",
     "test": "vitest run",
     "build": "pnpm -r run build",
