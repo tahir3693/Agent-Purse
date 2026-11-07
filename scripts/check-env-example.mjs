@@ -24,6 +24,8 @@ const MAX_LEN = 80;
 // Non-secret configuration: never fails the check.
 const NON_SECRET = new Set([
   "AI_MODEL",
+  "PORT",
+  "HOST",
   "PAYMENT_PROVIDER",
   "BRAINTREE_ENV",
   "APP_BASE_URL",
