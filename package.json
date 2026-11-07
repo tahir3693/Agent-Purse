@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,json,md}\"",
     "typecheck": "pnpm -r run typecheck",
+    "check:env-example": "node scripts/check-env-example.mjs",
     "test": "vitest run",
     "build": "pnpm -r run build",
     "channel3:smoke": "pnpm --filter @agentpurse/api channel3:smoke",
