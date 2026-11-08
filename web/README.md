@@ -55,3 +55,28 @@ pnpm check:web-bundle                  # after a build: no server-only names in 
 ## Later (spec-09)
 
 AG Studio components are client-only. They load with `next/dynamic(() => import(...), { ssr: false })` inside a `"use client"` wrapper. The assistant goes through Next route handlers to the API's `POST /assistant`, and the browser never calls a model. Live updates use a stream token from `POST /api/owner/events/token` to open SSE directly to `NEXT_PUBLIC_API_BASE_URL/events`, with a fallback to polling every 2 seconds.
+
+## AG Studio page and assistant (spec-09b)
+
+`/dashboard/studio` embeds AG Studio 3.1.0 (`ag-studio`, `ag-studio-react`, pinned), loaded with `next/dynamic` and `ssr: false`. It has:
+
+- three custom widgets fed by the owner endpoints through the BFF: spend per day, decisions (approved, escalated, denied), and an escalation queue with Approve and Deny;
+- a built-in grid of intents (amounts in integer cents);
+- a dark theme (`studioTheme.withParams`);
+- a default layout that is saved to `localStorage` and can be reset with "Reset layout".
+
+The Studio Agent Framework assistant is READ-ONLY. Its adapter (`lib/assistant/adapter.ts`, `executeTurn`) sends only the conversation text to `POST /api/assistant`, which proxies to the API's `POST /assistant` (owner JWT, 10 requests per minute per owner).
+
+- The API holds `ANTHROPIC_API_KEY` and `AI_MODEL`, owns the system prompt, and runs four server-side read tools scoped to the signed-in owner: stats, intents, agents and policies, and decision explanations.
+- No tool can approve, deny, create, kill or change anything. Tool results and intent text are passed to the model as untrusted data.
+- Any model error or timeout fails closed with a short message.
+- The browser never sees an LLM key, and the agent has no Studio tools, so it cannot change the dashboard either.
+
+From the official AG Studio docs: AG Studio bundles no LLM connection. The `ai-api.ag-grid.com` URL appears only in the docs' example code, and no production hosted model endpoint is offered, so this app routes through its own API.
+
+### AG Studio trial licence
+
+- `NEXT_PUBLIC_AG_GRID_LICENSE_KEY` holds an AG Grid / AG Studio trial licence key. It is a browser-visible string, not an API key. No key value is stored in this repository.
+- The trial key is for evaluation only. It expires on 20 December 2026. After that date a watermark or licence banner is expected.
+- The assistant needs a licence that includes AI. If the browser console shows an AG Studio licence error, the key does not include AI (per the AG Studio troubleshooting guide).
+- Without the variable, the Studio page shows a message naming it and renders no Studio. The rest of the dashboard keeps working.

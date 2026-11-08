@@ -10,6 +10,7 @@ const LINKS = [
   ["/dashboard/approvals", "Approvals"],
   ["/dashboard/live", "Live monitor"],
   ["/dashboard/vault", "Vault"],
+  ["/dashboard/studio", "Studio"],
 ] as const;
 
 export function DashboardNav() {

@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 
+import { registerAssistantRoutes, type AssistantRoutesDeps } from "./assistant/routes.js";
 import { createMemoryWebhookEventStore } from "./db/memory.js";
 import type { AuthorizationStore, WebhookEventStore } from "./db/stores.js";
 import { registerEventRoutes, type EventRoutesDeps } from "./events/sse.js";
@@ -28,6 +29,8 @@ export interface BuildServerOptions {
   owners?: OwnerRoutesDeps;
   /** When provided, registers POST /events/token and GET /events (SSE). */
   events?: EventRoutesDeps;
+  /** When provided, registers POST /assistant (read-only AI assistant, NDJSON). */
+  assistant?: AssistantRoutesDeps;
   /** Test hook: custom logger destination. */
   logStream?: NodeJS.WritableStream;
 }
@@ -95,6 +98,9 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
   }
   if (opts.events) {
     registerEventRoutes(app, opts.events);
+  }
+  if (opts.assistant) {
+    registerAssistantRoutes(app, opts.assistant);
   }
   return app;
 }

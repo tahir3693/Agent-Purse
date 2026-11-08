@@ -1,3 +1,5 @@
+import { AnthropicAssistantModel } from "./assistant/model.js";
+import { readOnlyView } from "./assistant/service.js";
 import { buildChannel3Client, createChannel3Module } from "./channel3/index.js";
 import { loadConfig } from "./config.js";
 import {
@@ -115,6 +117,12 @@ async function main(): Promise<void> {
         jwtSecret,
       },
       events: { bus, jwtSecret, allowedOrigins: webOrigins },
+      // Read-only AI assistant: only lookup store methods are passed in.
+      assistant: {
+        reads: readOnlyView({ agents, policies, intents: intentStore, audit }),
+        model: new AnthropicAssistantModel(anthropic),
+        jwtSecret,
+      },
     };
   } catch (err) {
     // Config errors name the variable only, never a value.
