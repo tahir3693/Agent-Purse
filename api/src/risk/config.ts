@@ -24,6 +24,25 @@ export const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
 export const AI_PROVIDERS = ["anthropic", "gemini", "off"] as const;
 export type AiProvider = (typeof AI_PROVIDERS)[number];
 
+export const DEFAULT_ANTHROPIC_TIMEOUT_MS = 15_000;
+export const DEFAULT_GEMINI_TIMEOUT_MS = 12_000;
+/** Hard cap so a purchase request never hangs on the AI review. */
+export const MAX_AI_TIMEOUT_MS = 25_000;
+
+/**
+ * AI review timeout in ms from optional AI_TIMEOUT_MS: a positive integer,
+ * values above MAX_AI_TIMEOUT_MS are capped. Defaults per provider.
+ */
+export function loadAiTimeoutMs(env: NodeJS.ProcessEnv, provider: AiProvider): number {
+  const raw = env.AI_TIMEOUT_MS?.trim();
+  if (!raw) return provider === "gemini" ? DEFAULT_GEMINI_TIMEOUT_MS : DEFAULT_ANTHROPIC_TIMEOUT_MS;
+  const n = /^\d+$/.test(raw) ? Number(raw) : NaN;
+  if (!Number.isSafeInteger(n) || n < 1) {
+    throw new Error("Invalid environment variable: AI_TIMEOUT_MS (must be a positive integer, in milliseconds)");
+  }
+  return Math.min(n, MAX_AI_TIMEOUT_MS);
+}
+
 export interface GeminiConfig {
   apiKey: string;
   model: string;

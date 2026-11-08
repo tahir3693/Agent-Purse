@@ -13,7 +13,7 @@ const errBody = (type: string, message: string) => JSON.stringify({ type: "error
 describe("runAiCheck (stubbed fetch, no live call)", () => {
   it("OK prints the model only", async () => {
     const okFetch = (async () => new Response('{"content":[]}', { status: 200 })) as typeof fetch;
-    expect(formatAiCheck(await runAiCheck(CONFIG, okFetch))).toBe("AI check: OK (provider anthropic, model claude-sonnet-5-5)");
+    expect(formatAiCheck(await runAiCheck(CONFIG, okFetch))).toMatch(/^AI check: OK \(provider anthropic, model claude-sonnet-5-5\) elapsed=\d+ms$/);
   });
 
   it("FAILED prints kind, status and sanitized message, never the key", async () => {
@@ -22,6 +22,7 @@ describe("runAiCheck (stubbed fetch, no live call)", () => {
         status: 401,
       })) as typeof fetch;
     const line = formatAiCheck(await runAiCheck(CONFIG, denied));
+    expect(line).toMatch(/elapsed=\d+ms$/);
     expect(line).toContain("provider=anthropic");
     expect(line).toContain("kind=auth");
     expect(line).toContain("status=401");
@@ -72,7 +73,7 @@ describe("runAiCheck for other providers", () => {
       return new Response("{}", { status: 200 });
     }) as typeof fetch;
     const line = formatAiCheck(await runAiCheck(GEMINI, f));
-    expect(line).toBe("AI check: OK (provider gemini, model gemini-3.8-flash)");
+    expect(line).toMatch(/^AI check: OK \(provider gemini, model gemini-3.8-flash\) elapsed=\d+ms$/);
     expect(url).toContain("/models/gemini-3.8-flash:generateContent");
     expect(url).not.toContain(GEMINI.apiKey);
     expect(url).not.toContain("key=");

@@ -16,7 +16,7 @@ import {
 } from "./db/prisma.js";
 import { createEventBus } from "./events/bus.js";
 import { createPaymentProvider } from "./payments/factory.js";
-import { loadAiConfig } from "./risk/config.js";
+import { loadAiConfig, loadAiTimeoutMs } from "./risk/config.js";
 import { createRiskReviewer } from "./risk/provider.js";
 import { evaluateRisk, type RiskGuardConfig } from "./risk/index.js";
 import { buildServer } from "./server.js";
@@ -24,7 +24,6 @@ import { buildServer } from "./server.js";
 // Risk Guard defaults (owner-tunable policy storage is a later slice).
 const AUTO_APPROVE_BELOW_CENTS = 5000;
 const MAX_AUTO_APPROVE_RISK = 40;
-const AI_TIMEOUT_MS = 15_000;
 const MIN_MANDATE_KEY_LENGTH = 32;
 
 function fail(message: string): never {
@@ -59,16 +58,17 @@ async function main(): Promise<void> {
   try {
     const paymentProvider = createPaymentProvider(env);
     const ai = loadAiConfig(env);
+    const aiTimeoutMs = loadAiTimeoutMs(env, ai.provider);
     const channel3 = createChannel3Module({ client: buildChannel3Client(env) });
     const db = createPrismaClient();
 
     const riskConfig: RiskGuardConfig = {
       autoApproveBelowCents: AUTO_APPROVE_BELOW_CENTS,
       maxAutoApproveRisk: MAX_AUTO_APPROVE_RISK,
-      aiTimeoutMs: AI_TIMEOUT_MS,
+      aiTimeoutMs,
     };
     const reviewer = createRiskReviewer(ai, {
-      timeoutMs: AI_TIMEOUT_MS,
+      timeoutMs: aiTimeoutMs,
       // The app logger exists only after buildServer; fall back to console before that.
       logger: {
         warn: (obj, msg) =>

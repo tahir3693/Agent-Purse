@@ -4,12 +4,12 @@
 // full body. AI_PROVIDER=off makes no call.
 import type { AiConfig } from "./config.js";
 import { diagnose, errorFromResponse, formatDiagnostic, type AiDiagnostic } from "./diagnostics.js";
-import { geminiUrl } from "./gemini.js";
+import { geminiUrl, supportsThinkingLevel, THINKING_LEVEL } from "./gemini.js";
 
 export type AiCheckResult =
-  | { ok: true; provider: "anthropic" | "gemini"; model: string }
+  | { ok: true; provider: "anthropic" | "gemini"; model: string; elapsedMs: number }
   | { ok: true; provider: "off" }
-  | { ok: false; diagnostic: AiDiagnostic };
+  | { ok: false; diagnostic: AiDiagnostic; elapsedMs: number };
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -17,10 +17,12 @@ const ANTHROPIC_VERSION = "2023-06-01";
 export async function runAiCheck(
   config: AiConfig,
   fetchImpl: typeof fetch = (i, init) => fetch(i, init),
-  timeoutMs = 20_000
+  timeoutMs = 20_000 // callers pass the configured AI_TIMEOUT_MS
 ): Promise<AiCheckResult> {
   if (config.provider === "off") return { ok: true, provider: "off" };
 
+  const started = Date.now();
+  const elapsed = () => Math.max(0, Date.now() - started);
   const secrets = [config.apiKey];
   const { provider, model } = config;
   try {
@@ -31,7 +33,10 @@ export async function runAiCheck(
             headers: { "content-type": "application/json", "x-goog-api-key": config.apiKey },
             body: JSON.stringify({
               contents: [{ role: "user", parts: [{ text: "Reply with OK." }] }],
-              generationConfig: { maxOutputTokens: 256 },
+              generationConfig: {
+                maxOutputTokens: 1024,
+                ...(supportsThinkingLevel(model) ? { thinkingConfig: { thinkingLevel: THINKING_LEVEL } } : {}),
+              },
             }),
             signal: AbortSignal.timeout(timeoutMs),
           })
@@ -50,18 +55,22 @@ export async function runAiCheck(
             signal: AbortSignal.timeout(timeoutMs),
           });
     if (!res.ok) {
-      return { ok: false, diagnostic: diagnose(await errorFromResponse(res, provider), model, secrets, provider) };
+      return {
+        ok: false,
+        diagnostic: diagnose(await errorFromResponse(res, provider), model, secrets, provider),
+        elapsedMs: elapsed(),
+      };
     }
     // Drain without reading into output.
     await res.body?.cancel().catch(() => undefined);
-    return { ok: true, provider, model };
+    return { ok: true, provider, model, elapsedMs: elapsed() };
   } catch (error) {
-    return { ok: false, diagnostic: diagnose(error, model, secrets, provider) };
+    return { ok: false, diagnostic: diagnose(error, model, secrets, provider), elapsedMs: elapsed() };
   }
 }
 
 export function formatAiCheck(r: AiCheckResult): string {
-  if (!r.ok) return `AI check: FAILED (${formatDiagnostic(r.diagnostic)})`;
+  if (!r.ok) return `AI check: FAILED (${formatDiagnostic(r.diagnostic)}) elapsed=${r.elapsedMs}ms`;
   if (r.provider === "off") return "AI check: AI_PROVIDER=off (AI review disabled; no call made)";
-  return `AI check: OK (provider ${r.provider}, model ${r.model})`;
+  return `AI check: OK (provider ${r.provider}, model ${r.model}) elapsed=${r.elapsedMs}ms`;
 }

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_GEMINI_MODEL, loadAiConfig } from "../config.js";
+import { DEFAULT_GEMINI_MODEL, loadAiConfig, loadAiTimeoutMs, MAX_AI_TIMEOUT_MS } from "../config.js";
 import { GeminiRiskReviewer, geminiUrl } from "../gemini.js";
 import { evaluateRisk } from "../guard.js";
 import { createRiskReviewer } from "../provider.js";
@@ -232,5 +232,85 @@ describe("AI_PROVIDER=off (reviewer null)", () => {
     expect(reviewer.requests).toHaveLength(1); // sanity: the fake is called when present
     const none = await off("ok");
     expect(none.audit.aiOutcome).toBe("disabled");
+  });
+});
+
+describe("thinking setting", () => {
+  it("sends the lowest allowed thinkingLevel for gemini-3.x with a large output budget and strict JSON", async () => {
+    let body: {
+      generationConfig: {
+        maxOutputTokens: number;
+        thinkingConfig?: { thinkingLevel?: string };
+        responseFormat: { text: { mimeType: string } };
+      };
+    } | null = null;
+    const { reviewer } = setup(async (_u, i) => {
+      body = JSON.parse(i.body as string);
+      return geminiOk(JSON.stringify(REVIEW));
+    });
+    await reviewer.review(req, { signal: new AbortController().signal });
+    expect(body!.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "low" });
+    expect(body!.generationConfig.maxOutputTokens).toBeGreaterThanOrEqual(2048);
+    expect(body!.generationConfig.responseFormat.text.mimeType).toBe("APPLICATION_JSON");
+  });
+
+  it("omits thinkingConfig for model families that use thinkingBudget", async () => {
+    let raw = "";
+    const reviewer = new GeminiRiskReviewer({
+      config: { apiKey: FAKE_KEY, model: "gemini-2.5-flash" },
+      fetch: async (_u, i) => {
+        raw = i.body as string;
+        return geminiOk(JSON.stringify(REVIEW));
+      },
+      logger: { warn: () => undefined },
+    });
+    await reviewer.review(req, { signal: new AbortController().signal });
+    expect(raw).not.toContain("thinkingConfig");
+  });
+});
+
+describe("loadAiTimeoutMs", () => {
+  const env = (o: Record<string, string>) => o as unknown as NodeJS.ProcessEnv;
+
+  it("defaults: 12000 for gemini, 15000 for anthropic", () => {
+    expect(loadAiTimeoutMs(env({}), "gemini")).toBe(12_000);
+    expect(loadAiTimeoutMs(env({}), "anthropic")).toBe(15_000);
+    expect(loadAiTimeoutMs(env({ AI_TIMEOUT_MS: "  " }), "gemini")).toBe(12_000);
+  });
+  it("uses a valid value and caps at 25000", () => {
+    expect(loadAiTimeoutMs(env({ AI_TIMEOUT_MS: "8000" }), "gemini")).toBe(8_000);
+    expect(loadAiTimeoutMs(env({ AI_TIMEOUT_MS: "25000" }), "gemini")).toBe(25_000);
+    expect(loadAiTimeoutMs(env({ AI_TIMEOUT_MS: "90000" }), "anthropic")).toBe(MAX_AI_TIMEOUT_MS);
+  });
+  it.each(["0", "-5", "1.5", "abc", "12s", "1e3"])("rejects %s, naming AI_TIMEOUT_MS", (v) => {
+    expect(() => loadAiTimeoutMs(env({ AI_TIMEOUT_MS: v }), "gemini")).toThrow(/AI_TIMEOUT_MS/);
+  });
+});
+
+describe("timeout still fails closed", () => {
+  it("a hung Gemini call escalates (ai_timeout), never approves", async () => {
+    const reviewer = new GeminiRiskReviewer({
+      config,
+      timeoutMs: 20,
+      fetch: (_u, i) =>
+        new Promise<Response>((_res, rej) => {
+          i.signal!.addEventListener("abort", () =>
+            rej(Object.assign(new Error("aborted"), { name: "AbortError" })),
+          );
+        }),
+      logger: { warn: () => undefined },
+    });
+    const d = await evaluateRisk(deps(reviewer, price("ok"), { ...CONFIG, aiTimeoutMs: 500 }), riskInput());
+    expect(d.decision).toBe("escalate");
+    expect(d.riskScore).toBe(100);
+    expect(d.audit.aiOutcome).toBe("ai_timeout");
+  });
+
+  it("logs kind=timeout for an aborted call", async () => {
+    const { lines, run } = setup(async () => {
+      throw Object.assign(new Error("aborted"), { name: "AbortError" });
+    });
+    await run();
+    expect(lines[0]!.obj).toMatchObject({ kind: "timeout", provider: "gemini" });
   });
 });

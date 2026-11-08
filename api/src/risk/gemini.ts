@@ -12,7 +12,14 @@ import type { ReviewRequest, RiskReviewer } from "./reviewer.js";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 // Generous: Gemini 3 thinking tokens count against the output budget.
-const MAX_OUTPUT_TOKENS = 2048;
+const MAX_OUTPUT_TOKENS = 4096;
+// Lowest level the thinking docs allow for gemini-3.8-flash: "minimal" is
+// rejected with an error there, and thinking cannot be switched off. Gemini 3
+// models use thinkingLevel; older families (2.5) use thinkingBudget, so the
+// field is omitted for them rather than guessed.
+// https://aistudio.google.com/docs/thinking (Thinking levels table)
+export const THINKING_LEVEL = "low";
+export const supportsThinkingLevel = (model: string): boolean => /^gemini-3/.test(model);
 
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
@@ -89,6 +96,7 @@ export class GeminiRiskReviewer implements RiskReviewer {
       contents: [{ role: "user", parts: [{ text: buildUserMessage(req) }] }],
       generationConfig: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
+        ...(supportsThinkingLevel(this.config.model) ? { thinkingConfig: { thinkingLevel: THINKING_LEVEL } } : {}),
         responseFormat: {
           text: { mimeType: "APPLICATION_JSON", schema: GEMINI_VERDICT_SCHEMA },
         },
