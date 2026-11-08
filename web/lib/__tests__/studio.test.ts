@@ -11,12 +11,19 @@ import {
 import {
   DEFAULT_STATE,
   LAYOUT_KEY,
+  layoutFieldIds,
   loadSavedState,
   resetSavedState,
   saveState,
   type StorageLike,
 } from "../studio/layout";
 import { createOwnerStore } from "../studio/ownerStore";
+import {
+  buildIntentsSource,
+  INTENT_FIELD_IDS,
+  INTENT_FIELDS,
+  INTENTS_TABLE_ID,
+} from "../studio/schema";
 import type { Intent } from "../types";
 
 const base: Intent = {
@@ -263,5 +270,62 @@ describe("owner store", () => {
       error: "Upstream error",
       loaded: true,
     });
+  });
+});
+
+describe("studio schema", () => {
+  it("every field id the default layout references exists in the schema", () => {
+    const ids = layoutFieldIds(DEFAULT_STATE);
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) expect(INTENT_FIELD_IDS).toContain(id);
+  });
+
+  it("builds a complete schema with an empty intents array (fields are static)", () => {
+    const src = buildIntentsSource(toStudioRows([]));
+    expect(src.id).toBe(INTENTS_TABLE_ID);
+    expect(src.data).toEqual([]);
+    expect(src.fields?.map((f) => f.id)).toEqual(
+      INTENT_FIELDS.map((f) => f.id)
+    );
+    expect(new Set(INTENT_FIELD_IDS).size).toBe(INTENT_FIELD_IDS.length);
+  });
+
+  it("covers every key of a studio row", () => {
+    const keys = Object.keys(toStudioRows([base])[0]!).sort();
+    expect(INTENT_FIELDS.map((f) => f.id).sort()).toEqual(keys);
+  });
+
+  it("falls back to the default layout when a saved state maps an unknown field", () => {
+    const s = memoryStorage();
+    const stale = {
+      pages: [
+        {
+          id: "p",
+          widgets: {
+            g: {
+              type: "grid",
+              dataMapping: { cols: [{ id: "intents.nope" }] },
+            },
+          },
+        },
+      ],
+    };
+    saveState(s, stale);
+    expect(loadSavedState(s)).toBe(DEFAULT_STATE);
+    const good = {
+      pages: [
+        {
+          id: "p",
+          widgets: {
+            g: {
+              type: "grid",
+              dataMapping: { cols: [{ id: "intents.state" }] },
+            },
+          },
+        },
+      ],
+    };
+    saveState(s, good);
+    expect(loadSavedState(s)).toEqual(good);
   });
 });

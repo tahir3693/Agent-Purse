@@ -1,5 +1,8 @@
 // Default Studio layout and its localStorage persistence (spec-09b).
-export const LAYOUT_KEY = "ap-studio-layout-v1";
+import { INTENT_FIELD_IDS } from "./schema";
+
+// v2: v1 states could reference fields the schema did not define.
+export const LAYOUT_KEY = "ap-studio-layout-v2";
 
 export const INTENT_GRID_COLUMNS = [
   "createdAt",
@@ -54,6 +57,21 @@ export const DEFAULT_STATE = {
   panels: { filters: { collapsed: true } },
 } as const;
 
+/** Every field id referenced by a widget `dataMapping` anywhere in a layout state. */
+export function layoutFieldIds(state: unknown): string[] {
+  const out: string[] = [];
+  const walk = (v: unknown, inMapping: boolean): void => {
+    if (Array.isArray(v)) return v.forEach((x) => walk(x, inMapping));
+    if (typeof v !== "object" || v === null) return;
+    for (const [k, val] of Object.entries(v)) {
+      if (inMapping && k === "id" && typeof val === "string") out.push(val);
+      else walk(val, inMapping || k === "dataMapping");
+    }
+  };
+  walk(state, false);
+  return out;
+}
+
 export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
@@ -70,6 +88,9 @@ export function loadSavedState(storage: StorageLike | null): unknown {
       return DEFAULT_STATE;
     if (!v["pages"].every((p) => isObj(p) && typeof p["id"] === "string"))
       return DEFAULT_STATE;
+    // A saved layout that maps a field the schema lacks would fail Studio state validation.
+    const known = new Set(INTENT_FIELD_IDS);
+    if (layoutFieldIds(v).some((id) => !known.has(id))) return DEFAULT_STATE;
     return v;
   } catch {
     return DEFAULT_STATE;

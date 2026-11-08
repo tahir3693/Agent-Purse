@@ -26,6 +26,7 @@ import {
   saveState,
 } from "../../lib/studio/layout";
 import { createOwnerStore } from "../../lib/studio/ownerStore";
+import { buildIntentsSource } from "../../lib/studio/schema";
 import { useLive } from "../live/LiveProvider";
 import { Button } from "../ui/Button";
 import { AP_WIDGETS, type StudioContext } from "./widgets";
@@ -128,10 +129,7 @@ export default function StudioDashboard({
       } as never) as AgWidgetsConfig,
     []
   );
-  const data = useMemo(
-    () => ({ sources: [{ id: "intents", name: "Intents", data: rows }] }),
-    [rows]
-  );
+  const data = useMemo(() => ({ sources: [buildIntentsSource(rows)] }), [rows]);
 
   return (
     <div className="stack">
