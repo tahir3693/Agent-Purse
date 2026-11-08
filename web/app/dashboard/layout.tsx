@@ -1,15 +1,9 @@
 import { cookies } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-
-import { DashboardNav } from "../../components/DashboardNav";
+import { AppShell } from "../../components/AppShell";
 import { EnvNotice } from "../../components/EnvNotice";
-import {
-  LiveProvider,
-  LiveStatusPill,
-} from "../../components/live/LiveProvider";
-import { LogoutButton } from "../../components/LogoutButton";
+import { LiveProvider } from "../../components/live/LiveProvider";
 import { missingPublicEnv } from "../../lib/publicEnv";
 import { SESSION_COOKIE } from "../../lib/session";
 
@@ -25,22 +19,9 @@ export default async function DashboardLayout({
   if (!store.get(SESSION_COOKIE)?.value) redirect("/login");
   return (
     <LiveProvider>
-      <div className="shell">
-        <header className="topbar">
-          <Link href="/dashboard" className="brand">
-            AgentPurse
-          </Link>
-          <DashboardNav />
-          <div className="topbar-actions">
-            <LiveStatusPill />
-            <LogoutButton />
-          </div>
-        </header>
-        <main className="dash" id="main">
-          <EnvNotice names={missingPublicEnv()} />
-          {children}
-        </main>
-      </div>
+      <AppShell banner={<EnvNotice names={missingPublicEnv()} />}>
+        {children}
+      </AppShell>
     </LiveProvider>
   );
 }

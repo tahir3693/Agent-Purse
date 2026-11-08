@@ -1,8 +1,12 @@
 "use client";
 
+import { Radio } from "lucide-react";
 import { useLive } from "../live/LiveProvider";
+import { StatusPill } from "../ui/Badge";
+import { EmptyState } from "../ui/EmptyState";
+import { PageHeader } from "../ui/PageHeader";
 
-const LABEL: Record<string, string> = {
+export const EVENT_LABEL: Record<string, string> = {
   "intent.created": "Intent created",
   "intent.decided": "Risk Guard decided",
   "intent.authorized": "Hold authorized",
@@ -10,35 +14,61 @@ const LABEL: Record<string, string> = {
   "intent.denied": "Intent denied",
 };
 
+const EVENT_TONE: Record<string, string> = {
+  "intent.created": "tone-info",
+  "intent.decided": "tone-brand",
+  "intent.authorized": "tone-info",
+  "intent.captured": "tone-success",
+  "intent.denied": "tone-danger",
+};
+
+const STATUS_WORD = {
+  connecting: "Connecting",
+  live: "Connected",
+  reconnecting: "Reconnecting",
+  offline: "Offline",
+} as const;
+
 export function LiveMonitor() {
   const { status, events } = useLive();
   return (
     <div className="stack">
-      <h1>Live monitor</h1>
-      <p className="muted">
-        Stream status: <strong>{status}</strong>. Events stream directly from
-        the API with a short-lived token. If the stream keeps failing, the
-        dashboard polls every 2 seconds.
-      </p>
-      <ol className="list" aria-label="Recent events" aria-live="polite">
-        {events.length === 0 ? (
-          <li className="muted">Waiting for events.</li>
-        ) : null}
+      <PageHeader
+        title="Live monitor"
+        description={
+          <>
+            Stream status: <strong>{STATUS_WORD[status]}</strong> ({status}).
+            Events stream directly from the API with a short-lived token. If the
+            stream keeps failing, the dashboard polls every 2 seconds.
+          </>
+        }
+      />
+      {events.length === 0 ? (
+        <EmptyState icon={Radio} title="Waiting for events">
+          New purchase requests, decisions and payments show up here the moment
+          they happen.
+        </EmptyState>
+      ) : null}
+      <ol className="timeline" aria-label="Recent events" aria-live="polite">
         {events.map((e, i) => (
-          <li className="card" key={`${e.intentId}-${e.type}-${e.at}-${i}`}>
-            <div className="row">
-              <strong>{LABEL[e.type] ?? e.type}</strong>
-              {e.state ? (
-                <span className={`badge badge-${e.state}`}>{e.state}</span>
-              ) : null}
-              {e.decision ? <span className="badge">{e.decision}</span> : null}
-              <span className="muted">
-                {new Date(e.at).toLocaleTimeString()}
-              </span>
+          <li
+            className={`tl-item ${EVENT_TONE[e.type] ?? "tone-neutral"}`}
+            key={`${e.intentId}-${e.type}-${e.at}-${i}`}
+          >
+            <span className="tl-dot" aria-hidden="true" />
+            <div className="tl-body">
+              <div className="row">
+                <strong>{EVENT_LABEL[e.type] ?? e.type}</strong>
+                {e.state ? <StatusPill status={e.state} /> : null}
+                {e.decision ? <StatusPill status={e.decision} /> : null}
+                <span className="muted num">
+                  {new Date(e.at).toLocaleTimeString()}
+                </span>
+              </div>
+              <p className="muted plain">
+                Intent {e.intentId}, agent {e.agentId}
+              </p>
             </div>
-            <p className="muted plain">
-              Intent {e.intentId}, agent {e.agentId}
-            </p>
           </li>
         ))}
       </ol>

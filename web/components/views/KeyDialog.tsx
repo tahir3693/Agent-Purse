@@ -1,6 +1,8 @@
 "use client";
 
+import { Copy, KeyRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Button } from "../ui/Button";
 
 /**
  * Shows a new agent API key exactly once. The key lives only in the parent's
@@ -30,7 +32,10 @@ export function KeyDialog({
       onClose={onClose}
       onCancel={onClose}
     >
-      <h2 id="key-title">API key for {agentName}</h2>
+      <h2 id="key-title" className="row">
+        <KeyRound size={20} aria-hidden="true" />
+        API key for {agentName}
+      </h2>
       <p>
         This is the only time the key is shown. Copy it now and store it as
         DEMO_AGENT_KEY or in your agent&apos;s secret store. Only a hash is kept
@@ -40,8 +45,8 @@ export function KeyDialog({
         {apiKey}
       </p>
       <div className="row">
-        <button
-          type="button"
+        <Button
+          variant="primary"
           onClick={async () => {
             try {
               await navigator.clipboard.writeText(apiKey);
@@ -51,18 +56,18 @@ export function KeyDialog({
             }
           }}
         >
+          <Copy size={16} aria-hidden="true" />
           Copy key
-        </button>
-        <button
-          type="button"
-          className="secondary"
+        </Button>
+        <Button
+          variant="secondary"
           onClick={() => {
             ref.current?.close();
             onClose();
           }}
         >
           I have stored the key
-        </button>
+        </Button>
         <span role="status" aria-live="polite">
           {copied}
         </span>

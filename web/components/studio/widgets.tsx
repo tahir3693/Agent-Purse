@@ -13,6 +13,8 @@ import type { AgWidgetDefinition } from "ag-studio-react";
 import { useSyncExternalStore } from "react";
 
 import { formatMoney } from "../../lib/money";
+import { StatusPill } from "../ui/Badge";
+import { Button } from "../ui/Button";
 import { decisionBreakdown, spendPerDay } from "../../lib/studio/aggregate";
 import type { OwnerStore, StudioSnapshot } from "../../lib/studio/ownerStore";
 
@@ -56,7 +58,12 @@ function Status({ snap }: { snap: StudioSnapshot }) {
         Could not load data: {snap.error}
       </p>
     );
-  if (!snap.loaded) return <p className="muted">Loading</p>;
+  if (!snap.loaded)
+    return (
+      <p className="muted" role="status">
+        Loading
+      </p>
+    );
   return null;
 }
 
@@ -94,9 +101,9 @@ export function DecisionsWidget(params: Params) {
   const snap = useStore(params);
   const c = decisionBreakdown(snap.intents);
   const rows: [string, number, string][] = [
-    ["Approved", c.approved, "badge-ok"],
-    ["Escalated", c.escalated, "badge-escalated"],
-    ["Denied", c.denied, "badge-denied"],
+    ["Approved", c.approved, "approved"],
+    ["Escalated", c.escalated, "escalated"],
+    ["Denied", c.denied, "denied"],
   ];
   return (
     <Shell>
@@ -105,10 +112,10 @@ export function DecisionsWidget(params: Params) {
         className="ap-decisions"
         aria-label="Decisions in the latest 200 intents"
       >
-        {rows.map(([label, n, cls]) => (
+        {rows.map(([label, n, status]) => (
           <div key={label}>
             <dt>
-              <span className={`badge ${cls}`}>{label}</span>
+              <StatusPill status={status} label={label} />
             </dt>
             <dd>{n}</dd>
           </div>
@@ -145,20 +152,21 @@ export function EscalationQueueWidget(params: Params) {
                 </span>
               </div>
               <div className="row">
-                <button
-                  type="button"
+                <Button
+                  variant="success"
+                  size="sm"
                   onClick={() => void store?.decide(i.id, "approve")}
                   aria-describedby={err ? `q-err-${i.id}` : undefined}
                 >
                   Approve
-                </button>
-                <button
-                  type="button"
-                  className="danger"
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={() => void store?.decide(i.id, "deny")}
                 >
                   Deny
-                </button>
+                </Button>
               </div>
               {err ? (
                 <p id={`q-err-${i.id}`} role="alert" className="error-text">

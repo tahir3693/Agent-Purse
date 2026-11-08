@@ -82,17 +82,31 @@ export function useLive(): LiveState {
 
 const LABELS: Record<LiveStatus, string> = {
   connecting: "Connecting",
-  live: "Live",
+  live: "Connected",
   reconnecting: "Reconnecting",
-  offline: "Offline (polling every 2s)",
+  offline: "Offline",
+};
+
+const TONES: Record<LiveStatus, string> = {
+  connecting: "tone-warning",
+  live: "tone-success",
+  reconnecting: "tone-warning",
+  offline: "tone-danger",
 };
 
 export function LiveStatusPill() {
   const { status } = useLive();
   return (
-    <p className={`pill pill-${status}`} role="status" aria-live="polite">
+    <p
+      className={`live-pill pill-${status} ${TONES[status]}`}
+      role="status"
+      aria-live="polite"
+    >
       <span className="dot" aria-hidden="true" />
       {LABELS[status]}
+      {status === "offline" ? (
+        <span className="live-pill-label-long"> (polling every 2s)</span>
+      ) : null}
     </p>
   );
 }

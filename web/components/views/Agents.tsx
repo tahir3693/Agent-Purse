@@ -1,12 +1,19 @@
 "use client";
 
 import type { Policy } from "@agentpurse/shared";
+import { Bot, Pencil, Power, PowerOff } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-
 import { owner } from "../../lib/client/api";
 import { useOwnerData } from "../../lib/client/useOwnerData";
 import { policySummary } from "../../lib/policyForm";
 import type { Agent } from "../../lib/types";
+import { StatusPill } from "../ui/Badge";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { EmptyState } from "../ui/EmptyState";
+import { PageHeader } from "../ui/PageHeader";
+import { SkeletonList } from "../ui/Skeleton";
+import { Toast } from "../ui/Toast";
 import { KeyDialog } from "./KeyDialog";
 import { DEFAULT_POLICY_FORM, PolicyEditor } from "./PolicyEditor";
 import { validatePolicyForm } from "../../lib/policyForm";
@@ -43,37 +50,52 @@ function AgentRow({
   }
 
   return (
-    <li className="card">
-      <div className="row">
-        <strong>{agent.name}</strong>
-        <span
-          className={`badge ${agent.killed ? "badge-killed" : "badge-live"}`}
-        >
-          {agent.killed ? "Killed" : "Active"}
+    <Card as="li" className="agent-card">
+      <div
+        className="row"
+        style={{ flexWrap: "nowrap", alignItems: "flex-start" }}
+      >
+        <span className="agent-avatar">
+          <Bot size={20} aria-hidden="true" />
         </span>
-        <span className="muted">
-          {policy === undefined ? "Loading policy" : policySummary(policy)}
-        </span>
+        <div className="stack" style={{ gap: "0.35rem", flex: 1 }}>
+          <div className="row">
+            <strong className="agent-name">{agent.name}</strong>
+            <StatusPill
+              status={agent.killed ? "killed" : "active"}
+              label={agent.killed ? "Killed" : "Active"}
+            />
+          </div>
+          <span className="muted">
+            {policy === undefined ? "Loading policy" : policySummary(policy)}
+          </span>
+          <p className="muted plain">Agent id {agent.id}</p>
+        </div>
       </div>
-      <p className="muted plain">Agent id {agent.id}</p>
       <div className="row">
-        <button
-          type="button"
-          className={agent.killed ? "secondary" : "danger"}
+        <Button
+          variant={agent.killed ? "secondary" : "danger"}
+          size="sm"
           onClick={toggle}
           disabled={busy}
           aria-describedby={error ? errId : undefined}
         >
+          {agent.killed ? (
+            <Power size={16} aria-hidden="true" />
+          ) : (
+            <PowerOff size={16} aria-hidden="true" />
+          )}
           {agent.killed ? "Restore" : "Kill switch"}
-        </button>
-        <button
-          type="button"
-          className="secondary"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           aria-expanded={editing}
           onClick={() => setEditing((v) => !v)}
         >
+          <Pencil size={16} aria-hidden="true" />
           {editing ? "Close policy" : "Edit policy"}
-        </button>
+        </Button>
       </div>
       {error ? (
         <p id={errId} role="alert" className="error-text">
@@ -95,7 +117,7 @@ function AgentRow({
           }}
         />
       ) : null}
-    </li>
+    </Card>
   );
 }
 
@@ -108,8 +130,8 @@ export function Agents() {
   const [newKey, setNewKey] = useState<{ name: string; key: string } | null>(
     null
   );
-
   const requested = useRef(new Set<string>());
+
   useEffect(() => {
     for (const a of data?.agents ?? []) {
       if (requested.current.has(a.id)) continue;
@@ -149,32 +171,44 @@ export function Agents() {
 
   return (
     <div className="stack">
-      <h1>Agents</h1>
-      <form onSubmit={create} noValidate aria-label="Create agent">
-        <label htmlFor="agent-name">
-          New agent name
-          <input
-            id="agent-name"
-            value={name}
-            maxLength={80}
-            onChange={(e) => setName(e.target.value)}
-            aria-invalid={createError ? true : undefined}
-            aria-describedby={createError ? "create-err" : undefined}
-          />
-        </label>
-        <p className="muted">
-          New agents start with a $200.00 per-purchase cap and a $500.00 daily
-          budget. Edit it below.
-        </p>
-        <button type="submit" disabled={creating}>
-          {creating ? "Creating" : "Create agent"}
-        </button>
-        {createError ? (
-          <p id="create-err" role="alert" className="error-text">
-            {createError}
+      <PageHeader
+        title="Agents"
+        description="Create agents, set their spending policy, and stop one instantly with the kill switch."
+      />
+      <Card as="section">
+        <form
+          onSubmit={create}
+          noValidate
+          aria-label="Create agent"
+          style={{ maxWidth: "28rem" }}
+        >
+          <label htmlFor="agent-name">
+            New agent name
+            <input
+              id="agent-name"
+              value={name}
+              maxLength={80}
+              onChange={(e) => setName(e.target.value)}
+              aria-invalid={createError ? true : undefined}
+              aria-describedby={createError ? "create-err" : undefined}
+            />
+          </label>
+          <p className="hint">
+            New agents start with a $200.00 per-purchase cap and a $500.00 daily
+            budget. Edit it below.
           </p>
-        ) : null}
-      </form>
+          <div>
+            <Button type="submit" variant="primary" disabled={creating}>
+              {creating ? "Creating" : "Create agent"}
+            </Button>
+          </div>
+          {createError ? (
+            <p id="create-err" role="alert" className="error-text">
+              {createError}
+            </p>
+          ) : null}
+        </form>
+      </Card>
       {newKey ? (
         <KeyDialog
           agentName={newKey.name}
@@ -182,15 +216,14 @@ export function Agents() {
           onClose={() => setNewKey(null)}
         />
       ) : null}
-      {error ? (
-        <p role="alert" className="notice error">
-          Could not load agents: {error}
-        </p>
+      <Toast message={error ? `Could not load agents: ${error}` : null} />
+      {!data && !error ? <SkeletonList label="Loading agents" /> : null}
+      {data?.agents.length === 0 ? (
+        <EmptyState icon={Bot} title="No agents yet">
+          Create your first agent above to get an API key and a spending policy.
+        </EmptyState>
       ) : null}
       <ul className="list" aria-label="Agents">
-        {data?.agents.length === 0 ? (
-          <li className="muted">No agents yet.</li>
-        ) : null}
         {data?.agents.map((a) => (
           <AgentRow
             key={a.id}

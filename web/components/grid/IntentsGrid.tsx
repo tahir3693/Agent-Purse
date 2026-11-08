@@ -4,9 +4,9 @@
 import {
   AllCommunityModule,
   ModuleRegistry,
-  colorSchemeDark,
   themeQuartz,
   type ColDef,
+  type ICellRendererParams,
 } from "ag-grid-community";
 import { LicenseManager } from "ag-grid-enterprise";
 import { AgGridReact } from "ag-grid-react";
@@ -15,21 +15,33 @@ import { useMemo } from "react";
 import { formatMoney } from "../../lib/money";
 import { getPublicEnv } from "../../lib/publicEnv";
 import type { Intent } from "../../lib/types";
+import { RiskMeter, StatusPill } from "../ui/Badge";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 const licenseKey = getPublicEnv().agGridLicenseKey;
 if (licenseKey) LicenseManager.setLicenseKey(licenseKey);
 
-/** Dark theme matching globals.css. */
-export const gridTheme = themeQuartz.withPart(colorSchemeDark).withParams({
-  backgroundColor: "#1b1d21",
-  foregroundColor: "#f2f2f2",
-  accentColor: "#8ab4ff",
-  borderColor: "#3a3a3a",
-  headerBackgroundColor: "#23262b",
+/**
+ * Grid theme wired to the CSS variables in globals.css, so it follows the
+ * light/dark switch with no JS (browserColorScheme "inherit" uses <html>).
+ */
+export const gridTheme = themeQuartz.withParams({
+  backgroundColor: "var(--surface)",
+  foregroundColor: "var(--text)",
+  accentColor: "var(--brand)",
+  borderColor: "var(--border)",
+  headerBackgroundColor: "var(--raised)",
+  headerTextColor: "var(--text-2)",
+  headerFontWeight: 600,
+  rowHoverColor: "var(--hover)",
+  selectedRowBackgroundColor: "var(--brand-tint)",
+  chromeBackgroundColor: "var(--surface)",
+  browserColorScheme: "inherit",
   fontFamily: "inherit",
+  fontSize: 13,
+  borderRadius: 10,
+  wrapperBorderRadius: 0,
 });
-
 export default function IntentsGrid({
   rows,
   onSelect,
@@ -46,18 +58,27 @@ export default function IntentsGrid({
         valueFormatter: (p) =>
           p.value ? new Date(String(p.value)).toLocaleString() : "",
         minWidth: 170,
+        cellClass: "num",
       },
-      { field: "state", headerName: "State", minWidth: 110 },
+      {
+        field: "state",
+        headerName: "State",
+        minWidth: 130,
+        cellRenderer: (p: ICellRendererParams<Intent>) =>
+          p.value ? <StatusPill status={String(p.value)} /> : null,
+      },
       {
         field: "decision",
         headerName: "Decision",
-        minWidth: 110,
-        valueFormatter: (p) => (p.value ? String(p.value) : "-"),
+        minWidth: 120,
+        cellRenderer: (p: ICellRendererParams<Intent>) =>
+          p.value ? <StatusPill status={String(p.value)} /> : "-",
       },
       {
         field: "amountCents",
         headerName: "Amount",
         type: "rightAligned",
+        cellClass: "num",
         minWidth: 110,
         // Integer cents -> display only; sorting uses the integer value.
         valueFormatter: (p) =>
@@ -73,9 +94,10 @@ export default function IntentsGrid({
       {
         field: "riskScore",
         headerName: "Risk",
-        minWidth: 80,
-        valueFormatter: (p) =>
-          p.value === null || p.value === undefined ? "-" : String(p.value),
+        minWidth: 130,
+        cellRenderer: (p: ICellRendererParams<Intent>) => (
+          <RiskMeter score={p.data?.riskScore} compact />
+        ),
       },
       { field: "agentId", headerName: "Agent", minWidth: 140 },
     ],

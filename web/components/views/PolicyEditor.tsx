@@ -3,6 +3,7 @@
 import type { Policy } from "@agentpurse/shared";
 import { useId, useState, type FormEvent } from "react";
 
+import { Button } from "../ui/Button";
 import {
   EMPTY_POLICY_FORM,
   policyToForm,
@@ -120,7 +121,7 @@ export function PolicyEditor({
                 setValues((v) => ({ ...v, [f.key]: e.target.value }))
               }
             />
-            <span id={`${inputId}-hint`} className="muted">
+            <span id={`${inputId}-hint`} className="hint">
               {f.hint}
             </span>
             {err ? (
@@ -132,10 +133,10 @@ export function PolicyEditor({
         );
       })}
       <div className="row full">
-        <button type="submit" disabled={busy}>
+        <Button type="submit" variant="primary" disabled={busy}>
           {submitLabel}
-        </button>
-        <span role="status" aria-live="polite">
+        </Button>
+        <span role="status" aria-live="polite" className="form-status">
           {status}
         </span>
       </div>

@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { request } from "../lib/client/api";
+import { Button } from "./ui/Button";
 
 export function RegisterForm() {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+  const [failed, setFailed] = useState(false); // styling only
   const [fields, setFields] = useState<Record<string, string>>({});
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -21,6 +23,7 @@ export function RegisterForm() {
     };
     setPending(true);
     setFields({});
+    setFailed(false);
     setMessage(
       "Creating your account. The API may take up to a minute to wake up."
     );
@@ -31,6 +34,7 @@ export function RegisterForm() {
       });
       if (!reg.ok) {
         setFields(reg.fields ?? {});
+        setFailed(true);
         setMessage(reg.message);
         return;
       }
@@ -58,6 +62,7 @@ export function RegisterForm() {
           name="email"
           type="email"
           autoComplete="username"
+          placeholder="you@example.com"
           required
           aria-invalid={fields["email"] ? true : undefined}
           aria-describedby={fields["email"] ? "reg-email-err" : undefined}
@@ -85,13 +90,23 @@ export function RegisterForm() {
           </span>
         ) : null}
       </label>
-      <button type="submit" disabled={pending}>
+      <Button
+        type="submit"
+        variant="primary"
+        size="lg"
+        block
+        disabled={pending}
+      >
         {pending ? "Creating account" : "Create account"}
-      </button>
-      <p role="status" aria-live="polite">
+      </Button>
+      <p
+        role="status"
+        aria-live="polite"
+        className={failed ? "error-text" : "form-status"}
+      >
         {message}
       </p>
-      <p className="muted">
+      <p className="auth-foot">
         Already have an account? <Link href="/login">Sign in</Link>
       </p>
     </form>

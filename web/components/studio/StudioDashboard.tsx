@@ -13,6 +13,7 @@ import {
   type AgWidgetsConfig,
 } from "ag-studio";
 import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
+import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { createAssistantAdapter } from "../../lib/assistant/adapter";
@@ -26,15 +27,20 @@ import {
 } from "../../lib/studio/layout";
 import { createOwnerStore } from "../../lib/studio/ownerStore";
 import { useLive } from "../live/LiveProvider";
+import { Button } from "../ui/Button";
 import { AP_WIDGETS, type StudioContext } from "./widgets";
 
-/** Dark theme matching globals.css. */
+/**
+ * Studio theme wired to the CSS variables in globals.css, so it follows the
+ * light/dark switch (browserColorScheme "inherit" reads <html>).
+ */
 export const apStudioTheme = studioTheme.withParams({
-  backgroundColor: "#121212",
-  foregroundColor: "#f2f2f2",
-  accentColor: "#8ab4ff",
-  borderColor: "#3a3a3a",
-  browserColorScheme: "dark",
+  backgroundColor: "var(--bg)",
+  foregroundColor: "var(--text)",
+  accentColor: "var(--brand)",
+  borderColor: "var(--border)",
+  fontFamily: "inherit",
+  browserColorScheme: "inherit",
 });
 
 const PROMPT_STARTERS = [
@@ -130,18 +136,19 @@ export default function StudioDashboard({
   return (
     <div className="stack">
       <div className="row">
-        <button
-          type="button"
-          className="secondary"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => {
             resetSavedState(storage());
             apiRef.current?.setState(DEFAULT_STATE as never);
             setNotice("Layout reset to the default.");
           }}
         >
+          <RotateCcw size={16} aria-hidden="true" />
           Reset layout
-        </button>
-        <span role="status" aria-live="polite">
+        </Button>
+        <span role="status" aria-live="polite" className="form-status">
           {notice}
         </span>
       </div>
