@@ -5,6 +5,7 @@ import { AnthropicRiskReviewer } from "./anthropic.js";
 import type { AiConfig } from "./config.js";
 import type { DiagLogger } from "./diagnostics.js";
 import { GeminiRiskReviewer } from "./gemini.js";
+import { OpenAiRiskReviewer } from "./openai.js";
 import type { RiskReviewer } from "./reviewer.js";
 
 export function createRiskReviewer(
@@ -21,6 +22,11 @@ export function createRiskReviewer(
       return null;
     case "gemini":
       return new GeminiRiskReviewer({ config: { apiKey: config.apiKey, model: config.model }, ...common });
+    case "openai":
+      return new OpenAiRiskReviewer({
+        config: { apiKey: config.apiKey, baseUrl: config.baseUrl, model: config.model },
+        ...common,
+      });
     case "anthropic":
       return new AnthropicRiskReviewer({ config: { apiKey: config.apiKey, model: config.model }, ...common });
   }

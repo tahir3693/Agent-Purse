@@ -31,9 +31,13 @@ export interface DiagLogger {
 export const MAX_DIAG_TEXT = 200;
 const MAX_BODY_READ = 4_000;
 
-/** Redacts sk-ant-... and AIza... (Google) key shapes and any explicitly supplied secrets. */
+/** Redacts sk-ant-, sk-, gsk_ and AIza key shapes and any explicitly supplied secrets. */
 export function redactSecrets(text: string, secrets: readonly string[] = []): string {
-  let out = text.replace(/sk-ant-[A-Za-z0-9_-]*/g, "[redacted]").replace(/AIza[A-Za-z0-9_-]{16,}/g, "[redacted]");
+  let out = text
+    .replace(/sk-ant-[A-Za-z0-9_-]*/g, "[redacted]")
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}/g, "[redacted]")
+    .replace(/\bgsk_[A-Za-z0-9_-]{8,}/g, "[redacted]")
+    .replace(/AIza[A-Za-z0-9_-]{16,}/g, "[redacted]");
   for (const s of secrets) {
     if (s.length >= 8) out = out.split(s).join("[redacted]");
   }
@@ -63,10 +67,17 @@ export function kindFromHttp(status: number, providerType?: string, providerMess
   // Gemini reports a bad key as 400 INVALID_ARGUMENT with "API key not valid".
   if (status === 400 && providerMessage !== undefined && /api key/i.test(providerMessage)) return "auth";
   if (status === 401 || status === 403) return "auth";
-  if (status === 404 || providerType === "not_found_error" || providerType === "NOT_FOUND") return "model_not_found";
+  if (
+    status === 404 ||
+    providerType === "not_found_error" ||
+    providerType === "NOT_FOUND" ||
+    providerType === "model_not_found"
+  )
+    return "model_not_found";
   if (status === 400 || status === 413 || status === 422) return "bad_request";
   // 529 (Anthropic) and 503 (Gemini) mean overloaded; 429 is quota/rate limit.
-  if (status === 429 || status === 529 || status === 503) return "rate_limited";
+  // 402 (OpenRouter) means out of credits: treated as quota.
+  if (status === 429 || status === 529 || status === 503 || status === 402) return "rate_limited";
   if (status === 408 || status === 504) return "timeout";
   return "unknown";
 }
@@ -80,8 +91,12 @@ export async function errorFromResponse(res: Response, provider = "anthropic"): 
   let providerMessage: string | undefined;
   try {
     const text = (await res.text()).slice(0, MAX_BODY_READ);
-    const parsed = JSON.parse(text) as { error?: { type?: unknown; status?: unknown; message?: unknown } };
-    if (typeof parsed.error?.type === "string") providerType = parsed.error.type;
+    const parsed = JSON.parse(text) as {
+      error?: { type?: unknown; code?: unknown; status?: unknown; message?: unknown };
+    };
+    // OpenAI-compatible APIs put a specific string in error.code (e.g. model_not_found).
+    if (provider === "openai" && typeof parsed.error?.code === "string") providerType = parsed.error.code;
+    else if (typeof parsed.error?.type === "string") providerType = parsed.error.type;
     else if (typeof parsed.error?.status === "string") providerType = parsed.error.status;
     if (typeof parsed.error?.message === "string") providerMessage = parsed.error.message;
   } catch {

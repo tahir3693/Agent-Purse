@@ -51,10 +51,13 @@ The following environment variables are required. They are documented in `.env.e
 | `PAYPAL_CLIENT_SECRET` | PayPal API client secret                                                           |
 | `PAYPAL_WEBHOOK_ID`    | PayPal webhook identifier for verifying webhook events                             |
 | `PAYPAL_BASE_URL`      | PayPal API base URL (sandbox or live)                                              |
-| `AI_PROVIDER`          | Optional: `anthropic` (default), `gemini` or `off` (see below)                     |
+| `AI_PROVIDER`          | Optional: `anthropic` (default), `gemini`, `openai` or `off` (see below)           |
 | `ANTHROPIC_API_KEY`    | API key for Anthropic; required only when `AI_PROVIDER=anthropic`                  |
 | `GEMINI_API_KEY`       | Optional: Gemini API key; required only when `AI_PROVIDER=gemini`                  |
-| `AI_MODEL`             | Model id for the selected provider (`claude-sonnet-5-5`, or `gemini-3.8-flash`)    |
+| `AI_API_KEY`           | Optional secret: key for an OpenAI-compatible API; required only when `AI_PROVIDER=openai` |
+| `AI_BASE_URL`          | Optional: https base URL for `openai` (default `https://api.groq.com/openai/v1`)   |
+| `AI_MODEL`             | Model id for the selected provider (`claude-sonnet-5-5`, `gemini-3.8-flash`, or `openai/gpt-oss-20b`) |
+| `AI_TIMEOUT_MS`        | Optional: AI review timeout in ms (default 12000 for `gemini` and `openai`, 15000 for `anthropic`, max 25000) |
 | `CHANNEL3_API_KEY`     | API key for Channel3 integration                                                   |
 | `AG_GRID_LICENSE_KEY`  | AG Grid enterprise license key                                                     |
 | `APP_BASE_URL`         | Base URL of the deployed application                                               |
@@ -65,9 +68,10 @@ The following environment variables are required. They are documented in `.env.e
 
 - `anthropic` (default): needs `ANTHROPIC_API_KEY`. Also backs the AG Studio assistant.
 - `gemini`: needs `GEMINI_API_KEY`; `AI_MODEL` defaults to `gemini-3.8-flash` (a Flash model with a free tier in the Gemini API pricing docs). The key is sent in the `x-goog-api-key` header only. Free-tier prompts may be used by Google to improve its products, so use sandbox data only. The assistant is not available on this provider; it replies with a short "not available" message.
+- `openai`: any OpenAI-compatible chat completions API, such as Groq or OpenRouter. Needs `AI_API_KEY`; `AI_BASE_URL` defaults to `https://api.groq.com/openai/v1` and must be https; `AI_MODEL` defaults to `openai/gpt-oss-20b`, which Groq lists with tool calling, JSON mode and free-tier limits ([tool use](https://console.groq.com/docs/tool-use), [rate limits](https://console.groq.com/docs/rate-limits)). The key is sent in the `Authorization: Bearer` header only. For OpenRouter set `AI_BASE_URL=https://openrouter.ai/api/v1` and an OpenRouter model id. Also backs the AG Studio assistant. Free-tier prompts may be retained or used by the provider, so use sandbox data only.
 - `off`: no AI call. Rules plus the Channel3 price check decide: a purchase within the auto-approve limit with a normal price may auto-approve, everything else escalates. Decision reasons start with "AI review disabled" and the audit outcome is `disabled`.
 
-`pnpm demo:check` tests the selected provider and prints a sanitized result (provider, kind, HTTP status, truncated message; never keys).
+`pnpm demo:check` tests the selected provider and prints a sanitized result (provider, kind, HTTP status, truncated message, elapsed ms; never keys).
 
 ### License
 

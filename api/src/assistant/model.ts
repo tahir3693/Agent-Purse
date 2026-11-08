@@ -1,6 +1,7 @@
 // LLM boundary for the assistant. Anthropic types stay in this file; errors
 // carry an HTTP status at most, never the key, request or response body.
-import type { AnthropicConfig } from "../risk/config.js";
+import type { AnthropicConfig, OpenAiConfig } from "../risk/config.js";
+import { chatCompletionsUrl } from "../risk/openai.js";
 
 export interface ToolSpec {
   name: string;
@@ -122,5 +123,164 @@ export function parseModelPayload(payload: {
       typeof payload.stop_reason === "string"
         ? payload.stop_reason
         : "end_turn",
+  };
+}
+
+// --- OpenAI-compatible chat completions (Groq, OpenRouter, ...) -------------
+// Each turn is one non-streaming POST {AI_BASE_URL}/chat/completions with the
+// four read-only tools sent as function tools. The model's tool_calls map to
+// the same internal tool_use blocks, and the loop in service.ts still emits the
+// same NDJSON events, so the web adapter is unchanged. The key is sent only in
+// the Authorization header; errors carry an HTTP status at most.
+
+// Reasoning models spend output tokens on thinking, so keep this generous.
+const OPENAI_MAX_TOKENS = 2048;
+
+type ChatMessage =
+  | { role: "system" | "user"; content: string }
+  | {
+      role: "assistant";
+      content: string | null;
+      tool_calls?: Array<{
+        id: string;
+        type: "function";
+        function: { name: string; arguments: string };
+      }>;
+    }
+  | { role: "tool"; tool_call_id: string; content: string };
+
+/** Maps the internal Anthropic-shaped conversation to chat/completions messages. */
+export function toChatMessages(req: ModelRequest): ChatMessage[] {
+  const out: ChatMessage[] = [{ role: "system", content: req.system }];
+  for (const m of req.messages) {
+    if (typeof m.content === "string") {
+      out.push({ role: m.role, content: m.content });
+      continue;
+    }
+    if (m.role === "assistant") {
+      const text = m.content
+        .filter((b): b is { type: "text"; text: string } => b.type === "text")
+        .map((b) => b.text)
+        .join("");
+      const calls = m.content
+        .filter(
+          (b): b is Extract<ModelBlock, { type: "tool_use" }> =>
+            b.type === "tool_use"
+        )
+        .map((b) => ({
+          id: b.id,
+          type: "function" as const,
+          function: { name: b.name, arguments: JSON.stringify(b.input ?? {}) },
+        }));
+      out.push({
+        role: "assistant",
+        content: text || null,
+        ...(calls.length > 0 ? { tool_calls: calls } : {}),
+      });
+      continue;
+    }
+    for (const b of m.content) {
+      if (b.type === "tool_result")
+        out.push({
+          role: "tool",
+          tool_call_id: b.tool_use_id,
+          content: b.content,
+        });
+      else if (b.type === "text") out.push({ role: "user", content: b.text });
+    }
+  }
+  return out;
+}
+
+export class OpenAiAssistantModel implements AssistantModel {
+  private readonly fetchImpl: FetchLike;
+  constructor(
+    private readonly config: OpenAiConfig,
+    fetchImpl?: FetchLike
+  ) {
+    this.fetchImpl = fetchImpl ?? ((i, init) => fetch(i, init));
+  }
+
+  async complete(
+    req: ModelRequest,
+    signal: AbortSignal
+  ): Promise<ModelResponse> {
+    const res = await this.fetchImpl(chatCompletionsUrl(this.config.baseUrl), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${this.config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.config.model,
+        max_tokens: OPENAI_MAX_TOKENS,
+        messages: toChatMessages(req),
+        tools: req.tools.map((t) => ({
+          type: "function",
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.input_schema,
+          },
+        })),
+      }),
+      signal,
+    });
+    if (!res.ok)
+      throw new Error(
+        `OpenAI-compatible request failed with status ${res.status}`
+      );
+    let payload: unknown;
+    try {
+      payload = await res.json();
+    } catch {
+      throw new Error("OpenAI-compatible response was not valid JSON");
+    }
+    return parseChatPayload(payload);
+  }
+}
+
+/** Keeps only well-formed text and function tool_calls from choices[0]. */
+export function parseChatPayload(payload: unknown): ModelResponse {
+  const choice = (
+    payload as {
+      choices?: Array<{
+        finish_reason?: unknown;
+        message?: { content?: unknown; tool_calls?: unknown };
+      }>;
+    }
+  )?.choices?.[0];
+  const message = choice?.message;
+  if (!message) throw new Error("OpenAI-compatible response had no message");
+  const blocks: ModelBlock[] = [];
+  if (typeof message.content === "string" && message.content.trim())
+    blocks.push({ type: "text", text: message.content });
+  if (Array.isArray(message.tool_calls)) {
+    for (const c of message.tool_calls as Array<Record<string, unknown>>) {
+      const fn = c?.["function"] as Record<string, unknown> | undefined;
+      if (typeof c?.["id"] !== "string" || typeof fn?.["name"] !== "string")
+        continue;
+      let input: unknown = {};
+      if (typeof fn["arguments"] === "string" && fn["arguments"].trim()) {
+        try {
+          input = JSON.parse(fn["arguments"]);
+        } catch {
+          input = null; // invalid arguments: the tool layer rejects them
+        }
+      }
+      blocks.push({
+        type: "tool_use",
+        id: c["id"],
+        name: fn["name"],
+        input,
+      });
+    }
+  }
+  return {
+    blocks,
+    stopReason:
+      typeof choice?.finish_reason === "string"
+        ? choice.finish_reason
+        : "stop",
   };
 }

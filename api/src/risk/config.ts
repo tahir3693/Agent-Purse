@@ -21,11 +21,20 @@ export function loadAnthropicConfig(env: NodeJS.ProcessEnv): AnthropicConfig {
 /** Free-tier Flash model id from the Gemini API models and pricing docs. */
 export const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
 
-export const AI_PROVIDERS = ["anthropic", "gemini", "off"] as const;
+/**
+ * Default model for AI_PROVIDER=openai against Groq. Groq lists it as supporting
+ * local tool use and JSON mode, with free-tier rate limits:
+ * https://console.groq.com/docs/tool-use (supported models table)
+ * https://console.groq.com/docs/rate-limits (free-plan limits for openai/gpt-oss-20b)
+ */
+export const DEFAULT_OPENAI_MODEL = "openai/gpt-oss-20b";
+export const DEFAULT_OPENAI_BASE_URL = "https://api.groq.com/openai/v1";
+export const AI_PROVIDERS = ["anthropic", "gemini", "openai", "off"] as const;
 export type AiProvider = (typeof AI_PROVIDERS)[number];
 
 export const DEFAULT_ANTHROPIC_TIMEOUT_MS = 15_000;
 export const DEFAULT_GEMINI_TIMEOUT_MS = 12_000;
+export const DEFAULT_OPENAI_TIMEOUT_MS = 12_000;
 /** Hard cap so a purchase request never hangs on the AI review. */
 export const MAX_AI_TIMEOUT_MS = 25_000;
 
@@ -35,7 +44,11 @@ export const MAX_AI_TIMEOUT_MS = 25_000;
  */
 export function loadAiTimeoutMs(env: NodeJS.ProcessEnv, provider: AiProvider): number {
   const raw = env.AI_TIMEOUT_MS?.trim();
-  if (!raw) return provider === "gemini" ? DEFAULT_GEMINI_TIMEOUT_MS : DEFAULT_ANTHROPIC_TIMEOUT_MS;
+  if (!raw) {
+    if (provider === "gemini") return DEFAULT_GEMINI_TIMEOUT_MS;
+    if (provider === "openai") return DEFAULT_OPENAI_TIMEOUT_MS;
+    return DEFAULT_ANTHROPIC_TIMEOUT_MS;
+  }
   const n = /^\d+$/.test(raw) ? Number(raw) : NaN;
   if (!Number.isSafeInteger(n) || n < 1) {
     throw new Error("Invalid environment variable: AI_TIMEOUT_MS (must be a positive integer, in milliseconds)");
@@ -48,9 +61,36 @@ export interface GeminiConfig {
   model: string;
 }
 
+/** OpenAI-compatible chat completions (Groq, OpenRouter, ...). baseUrl has no trailing slash. */
+export interface OpenAiConfig {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+}
+
+/**
+ * AI_BASE_URL must be an absolute https URL without credentials, query or hash.
+ * Trailing slashes are stripped so `${baseUrl}/chat/completions` is always well-formed.
+ * Errors name the variable only, never the value.
+ */
+export function normalizeBaseUrl(raw: string | undefined): string {
+  const value = raw?.trim() || DEFAULT_OPENAI_BASE_URL;
+  const invalid = () =>
+    new Error("Invalid environment variable: AI_BASE_URL (must be an https URL without credentials, query or hash)");
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw invalid();
+  }
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) throw invalid();
+  return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
+}
+
 export type AiConfig =
   | ({ provider: "anthropic" } & AnthropicConfig)
   | ({ provider: "gemini" } & GeminiConfig)
+  | ({ provider: "openai" } & OpenAiConfig)
   | { provider: "off" };
 
 /**
@@ -60,11 +100,21 @@ export type AiConfig =
 export function loadAiConfig(env: NodeJS.ProcessEnv): AiConfig {
   const raw = env.AI_PROVIDER?.trim().toLowerCase() || "anthropic";
   if (!(AI_PROVIDERS as readonly string[]).includes(raw)) {
-    throw new Error("Invalid environment variable: AI_PROVIDER (must be anthropic, gemini or off)");
+    throw new Error("Invalid environment variable: AI_PROVIDER (must be anthropic, gemini, openai or off)");
   }
   const provider = raw as AiProvider;
   if (provider === "off") return { provider };
   if (provider === "anthropic") return { provider, ...loadAnthropicConfig(env) };
+  if (provider === "openai") {
+    const key = env.AI_API_KEY?.trim();
+    if (!key) throw new Error("Missing required environment variable: AI_API_KEY");
+    const baseUrl = normalizeBaseUrl(env.AI_BASE_URL);
+    const m = env.AI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
+    if (/^claude/i.test(m)) {
+      throw new Error("Invalid environment variable: AI_MODEL (a Claude model id cannot be used with AI_PROVIDER=openai)");
+    }
+    return { provider, apiKey: key, baseUrl, model: m };
+  }
 
   const apiKey = env.GEMINI_API_KEY?.trim();
   if (!apiKey) throw new Error("Missing required environment variable: GEMINI_API_KEY");

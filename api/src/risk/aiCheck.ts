@@ -5,9 +5,10 @@
 import type { AiConfig } from "./config.js";
 import { diagnose, errorFromResponse, formatDiagnostic, type AiDiagnostic } from "./diagnostics.js";
 import { geminiUrl, supportsThinkingLevel, THINKING_LEVEL } from "./gemini.js";
+import { chatCompletionsUrl } from "./openai.js";
 
 export type AiCheckResult =
-  | { ok: true; provider: "anthropic" | "gemini"; model: string; elapsedMs: number }
+  | { ok: true; provider: "anthropic" | "gemini" | "openai"; model: string; elapsedMs: number }
   | { ok: true; provider: "off" }
   | { ok: false; diagnostic: AiDiagnostic; elapsedMs: number };
 
@@ -27,7 +28,18 @@ export async function runAiCheck(
   const { provider, model } = config;
   try {
     const res =
-      provider === "gemini"
+      config.provider === "openai"
+        ? await fetchImpl(chatCompletionsUrl(config.baseUrl), {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${config.apiKey}` },
+            body: JSON.stringify({
+              model,
+              max_tokens: 256,
+              messages: [{ role: "user", content: "Reply with OK." }],
+            }),
+            signal: AbortSignal.timeout(timeoutMs),
+          })
+        : provider === "gemini"
         ? await fetchImpl(geminiUrl(model), {
             method: "POST",
             headers: { "content-type": "application/json", "x-goog-api-key": config.apiKey },
@@ -72,5 +84,9 @@ export async function runAiCheck(
 export function formatAiCheck(r: AiCheckResult): string {
   if (!r.ok) return `AI check: FAILED (${formatDiagnostic(r.diagnostic)}) elapsed=${r.elapsedMs}ms`;
   if (r.provider === "off") return "AI check: AI_PROVIDER=off (AI review disabled; no call made)";
+  // The OpenAI-compatible line mirrors the failure fields (provider, kind, status, message).
+  if (r.provider === "openai") {
+    return `AI check: OK (provider=openai kind=ok status=200 message=ok model=${r.model}) elapsed=${r.elapsedMs}ms`;
+  }
   return `AI check: OK (provider ${r.provider}, model ${r.model}) elapsed=${r.elapsedMs}ms`;
 }

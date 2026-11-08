@@ -13,6 +13,7 @@ const SERVER_SECRETS = [
   "PAYPAL_CLIENT_SECRET",
   "ANTHROPIC_API_KEY",
   "GEMINI_API_KEY",
+  "AI_API_KEY",
 ];
 
 function walk(dir: string, out: string[] = []): string[] {

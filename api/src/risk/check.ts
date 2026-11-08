@@ -1,5 +1,5 @@
 // pnpm demo:check. Loads the root .env (node --env-file-if-exists). Prints one line
-// for the provider selected by AI_PROVIDER (anthropic | gemini | off).
+// for the provider selected by AI_PROVIDER (anthropic | gemini | openai | off).
 import { formatAiCheck, runAiCheck } from "./aiCheck.js";
 import { loadAiConfig, loadAiTimeoutMs } from "./config.js";
 

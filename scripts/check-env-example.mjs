@@ -17,6 +17,7 @@ const SAFE_LITERALS = new Set([
   "gemini-3.8-flash",
   "anthropic",
   "gemini",
+  "openai",
   "off",
 ]);
 const SAFE_HOSTS = new Set([
@@ -29,6 +30,7 @@ const MAX_LEN = 80;
 const NON_SECRET = new Set([
   "AI_MODEL",
   "AI_PROVIDER",
+  "AI_BASE_URL",
   "AI_TIMEOUT_MS",
   "PORT",
   "HOST",

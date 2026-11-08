@@ -1,4 +1,4 @@
-import { AnthropicAssistantModel } from "./assistant/model.js";
+import { AnthropicAssistantModel, OpenAiAssistantModel } from "./assistant/model.js";
 import { readOnlyView } from "./assistant/service.js";
 import { buildChannel3Client, createChannel3Module } from "./channel3/index.js";
 import { loadConfig } from "./config.js";
@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   if (jwtSecret.length < MIN_MANDATE_KEY_LENGTH) {
     fail(`Invalid environment variable: JWT_SECRET (must be at least ${MIN_MANDATE_KEY_LENGTH} characters)`);
   }
-  // The selected provider's key (ANTHROPIC_API_KEY or GEMINI_API_KEY) is validated by loadAiConfig.
+  // The selected provider's key (ANTHROPIC_API_KEY, GEMINI_API_KEY or AI_API_KEY) is validated by loadAiConfig.
   requireEnv("CHANNEL3_API_KEY");
 
   const appLog: { current?: { warn(obj: object, msg: string): void } } = {};
@@ -130,8 +130,13 @@ async function main(): Promise<void> {
       // Read-only AI assistant: only lookup store methods are passed in.
       assistant: {
         reads: readOnlyView({ agents, policies, intents: intentStore, audit }),
-        // Only the Anthropic provider backs the assistant; others get a friendly in-chat message.
-        model: ai.provider === "anthropic" ? new AnthropicAssistantModel(ai) : null,
+        // Anthropic and OpenAI-compatible providers back the assistant; others get a friendly in-chat message.
+        model:
+          ai.provider === "anthropic"
+            ? new AnthropicAssistantModel(ai)
+            : ai.provider === "openai"
+              ? new OpenAiAssistantModel(ai)
+              : null,
         jwtSecret,
       },
     };
