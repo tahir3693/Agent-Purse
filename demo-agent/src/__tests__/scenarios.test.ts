@@ -14,7 +14,9 @@ import {
   context,
   ok,
   stubApi,
+  product,
   stubCatalog,
+  type Availability,
   type StubApiScript,
 } from "./stubs.js";
 
@@ -103,32 +105,92 @@ describe("needs-approval", () => {
     expect(r.elapsed()).toBe(6_000);
   });
 
-  it("raises an offer inside the auto-approve band to 12000 cents and says so", async () => {
-    const cheap = stubCatalog({
+  const offerFor = (
+    id: string,
+    price: number,
+    availability: Availability = "InStock",
+    currency = "USD"
+  ) => product(id, [[`${id}.test`, price, availability, currency]]);
+  it("searches a $70-$150 range and requests exactly the real price", async () => {
+    const r = await run("needs-approval", {
+      create: escalated,
+      states: ["authorized"],
+    });
+    expect(r.catalogCalls[0]).toEqual({
+      query: "mechanical keyboard",
+      max: 15_000,
+      min: 7_000,
+    });
+    expect(r.created[0]?.amountCents).toBe(12_900);
+    expect(r.created[0]?.amountCents).toBeGreaterThan(5_000);
+    expect(r.created[0]?.amountCents).toBeLessThan(20_000);
+    expect(r.created[0]?.productId).toBe("prod-kb");
+    expect(r.transcript.text()).not.toContain("instead so it needs approval");
+  });
+
+  it("picks the in-range product closest to $100 and ignores cheap, pricey or out-of-stock ones", async () => {
+    const cat = stubCatalog({
       "mechanical keyboard": [
-        {
-          id: "k",
-          title: "kb",
-          offers: [
-            {
-              url: "u",
-              domain: "k.test",
-              price: { price: 40, currency: "USD" },
-              availability: "InStock",
-            },
-          ],
-        },
+        offerFor("cheap", 34.99),
+        offerFor("far", 149.0),
+        offerFor("oos", 99.0, "OutOfStock"),
+        offerFor("eur", 100.0, "InStock", "EUR"),
+        offerFor("near", 92.5),
+        offerFor("pricey", 220.0),
       ],
     });
     const r = await run(
       "needs-approval",
       { create: escalated, states: ["authorized"] },
-      cheap
+      cat
     );
-    expect(r.created[0]?.amountCents).toBe(12_000);
-    expect(r.transcript.text()).toContain("requesting $120.00 instead");
+    expect(r.created[0]?.amountCents).toBe(9_250);
+    expect(r.created[0]?.productId).toBe("near");
   });
 
+  it("falls back to the next query when the first has nothing in range", async () => {
+    const cat = stubCatalog({
+      "mechanical keyboard": [offerFor("cheap", 34.99)],
+      "wireless noise cancelling headphones": [offerFor("hp", 119.0)],
+    });
+    const r = await run(
+      "needs-approval",
+      { create: escalated, states: ["authorized"] },
+      cat
+    );
+    expect(r.catalogCalls.map((c) => c.query)).toEqual([
+      "mechanical keyboard",
+      "wireless noise cancelling headphones",
+    ]);
+    expect(r.created[0]?.amountCents).toBe(11_900);
+  });
+
+  it("FAIL with a clear message and no API call when no product is in range", async () => {
+    const cat = stubCatalog({
+      "mechanical keyboard": [offerFor("cheap", 34.99)],
+      "wireless noise cancelling headphones": [],
+    });
+    const r = await run("needs-approval", { create: escalated }, cat);
+    expect(r.result).toMatchObject({ pass: false, actual: "no offer" });
+    expect(r.result.reason).toContain("$70.00 to $150.00");
+    expect(r.calls).toEqual([]);
+  });
+
+  it("small-safe and overpriced keep their cheap budgets", async () => {
+    const s = await run("small-safe");
+    expect(s.catalogCalls[0]).toEqual({ query: "usb c cable", max: 2_500 });
+    const o = await run("overpriced", {
+      create: () =>
+        ok(201, {
+          intentId: "i",
+          decision: "escalate",
+          state: "escalated",
+          riskScore: 80,
+          reason: "price high",
+        }),
+    });
+    expect(o.catalogCalls[0]).toEqual({ query: "usb c cable", max: 2_500 });
+  });
   it("FAIL when the owner denies", async () => {
     const r = await run("needs-approval", {
       create: escalated,

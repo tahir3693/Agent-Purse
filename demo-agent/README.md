@@ -32,7 +32,7 @@ Copy the printed agent key and vault method id into `.env` as `DEMO_AGENT_KEY` a
 
 ```sh
 pnpm demo:run --scenario small-safe       # cheap item, auto-approved, then authorize and capture
-pnpm demo:run --scenario needs-approval   # above the $50.00 auto-approve limit; approve or deny it in the dashboard within 3 minutes
+pnpm demo:run --scenario needs-approval   # a real $70-$150 product at its real price, above the $50.00 auto-approve limit; approve or deny it in the dashboard within 3 minutes
 pnpm demo:run --scenario over-cap         # $250.00, above the $200.00 per-purchase cap; denied by the rules
 pnpm demo:run --scenario overpriced       # about 3x the Channel3 market price; the price check flags it
 pnpm demo:run --scenario injection        # justification tries to override the policy; not approved
@@ -49,7 +49,7 @@ The exit code is 0 when every selected scenario passes and 1 otherwise. A missin
 The amounts match the demo seed policy (per-purchase cap $200.00, daily budget $500.00) and the API auto-approve limit of $50.00.
 
 - small-safe needs the AI review to approve a cheap purchase. The rules and the price check allow it, but the AI decides. If the AI does not approve, the run says FAIL with its reason.
-- needs-approval is deterministic: any amount above $50.00 escalates whatever the AI says.
+- needs-approval is deterministic: any amount above $50.00 escalates whatever the AI says. The agent searches Channel3 for a mechanical keyboard (then wireless noise cancelling headphones) with a $70.00 to $150.00 price filter, picks the in-stock USD offer closest to $100.00, and requests exactly that real price. The price is never inflated, so the only reason to escalate is the amount. If no product in that range is found, the scenario fails with a clear message before any API call.
 - over-cap is deterministic (rules deny).
 - overpriced asks under $50.00, so only the price check can stop it. A high price always escalates.
 - injection is denied by the deterministic prompt-injection check.

@@ -43,10 +43,10 @@ export function stubCatalog(
     "mechanical keyboard": [KEYBOARD],
   }
 ) {
-  const calls: { query: string; max: number }[] = [];
+  const calls: { query: string; max: number; min?: number }[] = [];
   const catalog: Catalog = {
-    async search(query, max) {
-      calls.push({ query, max });
+    async search(query, max, min) {
+      calls.push({ query, max, ...(min !== undefined ? { min } : {}) });
       return byQuery[query] ?? [];
     },
   };

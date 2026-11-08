@@ -2,12 +2,26 @@
 // status poll is the only loop) and reports PASS or FAIL against one expected
 // outcome. No silent retries. Amounts are integer cents throughout.
 import type { AgentApi, ApiResult, CreateIntentBody } from "./api.js";
-import { pickOffer, type Catalog, type Offer } from "./catalog.js";
+import {
+  pickOffer,
+  pickOfferInRange,
+  type Catalog,
+  type Offer,
+} from "./catalog.js";
 import { formatCents } from "./money.js";
 import { cap, type Transcript } from "./transcript.js";
 
 export const AUTO_APPROVE_LIMIT_CENTS = 5_000; // API AUTO_APPROVE_BELOW_CENTS
 export const PER_PURCHASE_CAP_CENTS = 20_000; // demo seed policy
+// needs-approval buys a real product priced above the auto-approve limit and
+// below the per-purchase cap, so the amount is the only reason to escalate.
+export const NEEDS_APPROVAL_MIN_CENTS = 7_000;
+export const NEEDS_APPROVAL_MAX_CENTS = 15_000;
+export const NEEDS_APPROVAL_TARGET_CENTS = 10_000;
+export const NEEDS_APPROVAL_QUERIES = [
+  "mechanical keyboard",
+  "wireless noise cancelling headphones",
+];
 export const POLL_INTERVAL_MS = 2_000;
 export const APPROVAL_TIMEOUT_MS = 180_000;
 const FINAL_STATES = new Set([
@@ -92,6 +106,42 @@ async function findOffer(
     );
   }
   return offer;
+}
+
+/** First query that yields an in-stock offer inside the needs-approval price range. */
+async function findOfferInRange(ctx: ScenarioContext): Promise<Offer | null> {
+  const t = ctx.transcript;
+  const range = `${formatCents(NEEDS_APPROVAL_MIN_CENTS)} to ${formatCents(NEEDS_APPROVAL_MAX_CENTS)}`;
+  for (const query of NEEDS_APPROVAL_QUERIES) {
+    t.line(`  agent: searching Channel3 for "${query}" priced ${range}`);
+    let products;
+    try {
+      products = await ctx.catalog.search(
+        query,
+        NEEDS_APPROVAL_MAX_CENTS,
+        NEEDS_APPROVAL_MIN_CENTS
+      );
+    } catch {
+      t.line("  catalog: search failed");
+      continue;
+    }
+    const offer = pickOfferInRange(
+      products,
+      NEEDS_APPROVAL_MIN_CENTS,
+      NEEDS_APPROVAL_MAX_CENTS,
+      NEEDS_APPROVAL_TARGET_CENTS
+    );
+    if (offer) {
+      t.line(
+        `  catalog: picked "${cap(offer.title, 80)}" from ${cap(offer.domain, 80)} at ${formatCents(offer.priceCents)}`
+      );
+      return offer;
+    }
+    t.line(
+      `  catalog: ${products.length} product(s), none in stock in the price range`
+    );
+  }
+  return null;
 }
 
 function printIntent(t: Transcript, r: ApiResult): void {
@@ -217,24 +267,24 @@ const smallSafe: Scenario = {
 
 const needsApproval: Scenario = {
   name: "needs-approval",
-  summary: "mid-size purchase above the auto-approve limit waits for the owner",
+  summary:
+    "real $70-$150 product at its real price; above the auto-approve limit, so it waits for the owner",
   async run(ctx) {
     const expected = "escalate, owner approves, then captured";
     const t = ctx.transcript;
-    const offer = await findOffer(ctx, "mechanical keyboard", 15_000);
-    if (!offer) return fail(expected, "no offer", "no offer within budget");
-    let amount = Math.min(offer.priceCents, PER_PURCHASE_CAP_CENTS - 1);
-    if (amount <= AUTO_APPROVE_LIMIT_CENTS) {
-      amount = 12_000;
-      t.line(
-        `  agent: offer is inside the auto-approve band; requesting ${formatCents(amount)} instead so it needs approval`
+    const offer = await findOfferInRange(ctx);
+    if (!offer)
+      return fail(
+        expected,
+        "no offer",
+        `no in-stock Channel3 product priced ${formatCents(NEEDS_APPROVAL_MIN_CENTS)} to ${formatCents(NEEDS_APPROVAL_MAX_CENTS)} found for: ${NEEDS_APPROVAL_QUERIES.join(", ")}`
       );
-    }
+    // The real price, unchanged: only the auto-approve limit forces approval.
     const r = await submit(
       ctx,
       offer,
-      amount,
-      "Ergonomic keyboard for a new team member."
+      offer.priceCents,
+      "Equipment for a new team member."
     );
     const intentId = str(r.body["intentId"]);
     if (r.body["decision"] !== "escalate" || !intentId) {
