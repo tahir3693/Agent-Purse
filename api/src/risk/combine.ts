@@ -104,6 +104,8 @@ export function combine(
   const audit: RiskAuditMeta = toRiskAuditMeta({
     stageReached: "ai",
     priceStatus: price.status,
+    priceMedianCents: price.medianCents,
+    priceSampleSize: price.sampleSize,
     aiOutcome: ai.outcome,
     flagPromptInjection,
     riskScore,

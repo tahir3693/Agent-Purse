@@ -15,5 +15,7 @@ export function toRiskAuditMeta(parts: RiskAuditMeta): RiskAuditMeta {
   };
   if (parts.matchedRule !== undefined) meta.matchedRule = parts.matchedRule;
   if (parts.priceStatus !== undefined) meta.priceStatus = parts.priceStatus;
+  if (parts.priceMedianCents !== undefined) meta.priceMedianCents = parts.priceMedianCents;
+  if (parts.priceSampleSize !== undefined) meta.priceSampleSize = parts.priceSampleSize;
   return meta;
 }

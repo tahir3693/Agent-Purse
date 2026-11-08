@@ -73,10 +73,11 @@ async function main(): Promise<void> {
     const policies = createPrismaAgentPolicyStore(db);
     const intentStore = createPrismaIntentStore(db);
     const bus = createEventBus();
-    const webOrigins = [
-      ...(env["WEB_ORIGIN"] ?? "").split(",").map((s) => s.trim()).filter(Boolean),
-      "http://localhost:3000",
-    ];
+    // Only origins listed in WEB_ORIGIN (comma-separated) may open the SSE stream.
+    const webOrigins = (env["WEB_ORIGIN"] ?? "")
+      .split(",")
+      .map((s) => s.trim().replace(/\/+$/, ""))
+      .filter(Boolean);
     wiring = {
       paymentProvider,
       vault: {

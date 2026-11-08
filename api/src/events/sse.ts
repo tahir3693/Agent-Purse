@@ -48,9 +48,10 @@ export function registerEventRoutes(app: FastifyInstance, deps: EventRoutesDeps)
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     };
+    // CORS for this route only: exact WEB_ORIGIN match, never credentials.
+    headers["Vary"] = "Origin";
     if (typeof origin === "string" && deps.allowedOrigins?.includes(origin)) {
       headers["Access-Control-Allow-Origin"] = origin;
-      headers["Vary"] = "Origin";
     }
 
     reply.hijack();

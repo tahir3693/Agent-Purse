@@ -7,11 +7,13 @@ export function LogoutButton() {
   return (
     <button
       type="button"
+      className="secondary"
       onClick={async () => {
         await fetch("/api/auth/logout", { method: "POST" }).catch(
           () => undefined
         );
-        router.push("/login");
+        router.replace("/login");
+        router.refresh();
       }}
     >
       Sign out

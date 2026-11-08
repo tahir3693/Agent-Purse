@@ -48,6 +48,10 @@ export interface RiskAuditMeta {
   stageReached: RiskStage;
   matchedRule?: RuleId;
   priceStatus?: PriceCheckResult["status"];
+  /** Channel3 market median in integer cents, when the price check found offers. */
+  priceMedianCents?: number | null;
+  /** Number of offers the median was computed from. */
+  priceSampleSize?: number;
   aiOutcome: AiOutcome;
   flagPromptInjection: boolean;
   /** Integer 0-100. */

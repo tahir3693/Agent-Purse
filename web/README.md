@@ -28,10 +28,13 @@ The "No Output Directory named public" and "No entrypoint found which imports fa
 
 ## Routes
 
-- `/`: landing page. `/login` and `/dashboard` are placeholders until the dashboard slice (spec-09).
+- `/`: landing page. `/login` and `/register`: owner sign-in and sign-up.
+- `/dashboard/*` (needs the session cookie, otherwise redirects to `/login`): overview, agents (one-time key dialog, kill switch, policy editor), intents (AG Grid), approvals, live monitor, vault.
+- `POST /api/auth/register`: creates the owner account and never sets a cookie. `POST /api/vault/link-test-card`: links the Braintree sandbox test card with the fixed nonce `fake-valid-nonce`.
 - `GET /api/health`: calls the API `GET /healthz`. It returns 200 with the upstream status, 502 if the API is down or slow, and 500 if `API_BASE_URL` is missing.
 - `POST /api/auth/login`, `POST /api/auth/logout`: store or clear the owner JWT in the `ap_session` cookie (httpOnly, Secure, SameSite=Lax). The token never reaches browser JavaScript.
-- `GET|POST|PUT /api/owner/...`: an allowlisted proxy to owner API routes with the cookie JWT as a Bearer token. Unknown paths return 404, and a missing cookie returns 401.
+- `GET|POST|PUT /api/owner/...`: an allowlisted proxy to owner API routes with the cookie JWT as a Bearer token. Unknown paths return 404, and a missing cookie returns 401. Agent API keys pass through only on `POST agents` and are scrubbed from every other response.
+- Live updates: the browser fetches a 60-second stream token through the proxy and opens `GET /events` directly on `NEXT_PUBLIC_API_BASE_URL`. Each reconnect gets a new token, with backoff from 1s up to 30s. After 3 failures the dashboard also polls every 2s. The API must list the Vercel URL in `WEB_ORIGIN` for CORS.
 
 ## Render cold starts
 

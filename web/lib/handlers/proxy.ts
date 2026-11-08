@@ -30,12 +30,32 @@ export const ALLOWLIST: Record<string, RegExp[]> = {
     "intents/:id/approve",
     "intents/:id/deny",
     "events/token",
-    "vault/link",
   ].map(r),
   PUT: ["agents/:id/policy"].map(r),
 };
 
 const SEGMENT_RE = /^[A-Za-z0-9_-]{1,128}$/;
+
+function dropKeys(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(dropKeys);
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v))
+      if (k !== "apiKey") out[k] = dropKeys(val);
+    return out;
+  }
+  return v;
+}
+
+/** Removes every `apiKey` property from a JSON body; non-JSON passes through. */
+export function scrubApiKeys(text: string): string {
+  if (!text.includes("apiKey")) return text;
+  try {
+    return JSON.stringify(dropKeys(JSON.parse(text)));
+  } catch {
+    return text;
+  }
+}
 const MAX_BODY_BYTES = 64 * 1024;
 
 export function isAllowed(method: string, segments: string[]): boolean {
@@ -97,7 +117,10 @@ export async function handleProxy(
     );
   }
 
-  const text = await res.text().catch(() => "");
+  let text = await res.text().catch(() => "");
+  // Agent API keys are shown once, by POST /agents only. Any other response is
+  // scrubbed so a key can never be returned a second time through the proxy.
+  if (!(method === "POST" && path === "agents")) text = scrubApiKeys(text);
   const headers: Record<string, string> = {
     "content-type":
       res.headers.get("content-type") ?? "application/json; charset=utf-8",

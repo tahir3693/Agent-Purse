@@ -181,7 +181,15 @@ describe("audit and logs are free of intent text and keys", () => {
     expect(dump).not.toContain("SECRET-MARKER");
     expect(dump).not.toContain("JUSTIFY-MARKER");
     expect(Object.keys(res.audit).sort()).toEqual(
-      ["aiOutcome", "flagPromptInjection", "priceStatus", "riskScore", "stageReached"].sort(),
+      [
+        "aiOutcome",
+        "flagPromptInjection",
+        "priceMedianCents", // spec-09a: structured price data only
+        "priceSampleSize",
+        "priceStatus",
+        "riskScore",
+        "stageReached",
+      ].sort(),
     );
     for (const s of spies) expect(JSON.stringify(s.mock.calls)).not.toContain("MARKER");
   });

@@ -99,6 +99,8 @@ export interface ExecuteIntentResult {
 }
 
 const HISTORY_LIMIT = 200;
+export const REASON_MAX = 280;
+export const capReason = (r: string): string => (r.length > REASON_MAX ? r.slice(0, REASON_MAX) : r);
 const MANDATE_TTL_SECONDS = 300;
 
 const nowOf = (deps: IntentDeps): Date => (deps.now ? deps.now() : new Date());
@@ -263,6 +265,10 @@ export async function createIntent(
   if (!policy) {
     return finish("denied", "deny", 100, "No valid policy", "intent_denied", {
       code: "policy_missing",
+      reason: "No valid policy",
+      priceStatus: "unknown",
+      priceMedianCents: null,
+      priceSampleSize: 0,
     });
   }
 
@@ -296,10 +302,17 @@ export async function createIntent(
     throw new BadGatewayError("Risk evaluation unavailable");
   }
 
+  // Decision record (spec-09a). Structured fields plus the Risk Guard reason,
+  // which is a fixed template from combine/rules; still capped and treated as
+  // untrusted on render. Never the justification, description or other intent text.
   const riskMeta = {
     stageReached: risk.audit.stageReached,
     matchedRule: risk.audit.matchedRule,
     aiOutcome: risk.audit.aiOutcome,
+    reason: capReason(risk.reason),
+    priceStatus: risk.audit.priceStatus ?? "unknown",
+    priceMedianCents: risk.audit.priceMedianCents ?? null,
+    priceSampleSize: risk.audit.priceSampleSize ?? 0,
   };
 
   if (risk.decision === "deny") {
