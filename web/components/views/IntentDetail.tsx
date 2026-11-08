@@ -2,12 +2,14 @@
 
 import { MousePointerClick } from "lucide-react";
 import { useOwnerData } from "../../lib/client/useOwnerData";
+import { plural } from "../../lib/format";
 import { formatMoney } from "../../lib/money";
 import { decisionInfo, type IntentDetail as Detail } from "../../lib/types";
 import { RiskMeter, StatusPill } from "../ui/Badge";
 import { Card } from "../ui/Card";
 import { EmptyState } from "../ui/EmptyState";
 import { Skeleton } from "../ui/Skeleton";
+import { ShortId } from "../ui/ShortId";
 import { Toast } from "../ui/Toast";
 
 /** Plain-text decision summary. Every value renders as a React text node, never HTML. */
@@ -33,7 +35,9 @@ export function DecisionSummary({ detail }: { detail: Detail }) {
         <StatusPill status={d.priceStatus} />{" "}
         <span className="num">
           market median {median}
-          {d.priceSampleSize > 0 ? ` (${d.priceSampleSize} offers)` : ""}
+          {d.priceSampleSize > 0
+            ? ` (${plural(d.priceSampleSize, "offer")})`
+            : ""}
         </span>
       </dd>
     </dl>
@@ -79,7 +83,7 @@ export function IntentDetailPanel({
         className="card-title plain"
         style={{ marginBottom: "1rem" }}
       >
-        Intent {i.id}
+        Intent <ShortId id={i.id} label="intent id" />
       </h2>
       <dl className="kv">
         <dt>State</dt>

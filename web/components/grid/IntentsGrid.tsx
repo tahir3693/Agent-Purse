@@ -12,6 +12,7 @@ import { LicenseManager } from "ag-grid-enterprise";
 import { AgGridReact } from "ag-grid-react";
 import { useMemo } from "react";
 
+import { formatWhen } from "../../lib/format";
 import { formatMoney } from "../../lib/money";
 import { getPublicEnv } from "../../lib/publicEnv";
 import type { Intent } from "../../lib/types";
@@ -49,16 +50,18 @@ export default function IntentsGrid({
   rows: Intent[];
   onSelect: (id: string) => void;
 }) {
+  // Six columns that fit a 1440px viewport without a horizontal scrollbar:
+  // fixed minimum widths, with Created and Payee sharing the spare room.
   const columns = useMemo<ColDef<Intent>[]>(
     () => [
       {
         field: "createdAt",
         headerName: "Created",
         sort: "desc",
-        valueFormatter: (p) =>
-          p.value ? new Date(String(p.value)).toLocaleString() : "",
-        minWidth: 170,
+        flex: 1,
+        minWidth: 150,
         cellClass: "num",
+        valueFormatter: (p) => (p.value ? formatWhen(String(p.value)) : ""),
       },
       {
         field: "state",
@@ -70,7 +73,7 @@ export default function IntentsGrid({
       {
         field: "decision",
         headerName: "Decision",
-        minWidth: 120,
+        minWidth: 130,
         cellRenderer: (p: ICellRendererParams<Intent>) =>
           p.value ? <StatusPill status={String(p.value)} /> : "-",
       },
@@ -79,7 +82,7 @@ export default function IntentsGrid({
         headerName: "Amount",
         type: "rightAligned",
         cellClass: "num",
-        minWidth: 110,
+        minWidth: 120,
         // Integer cents -> display only; sorting uses the integer value.
         valueFormatter: (p) =>
           p.data
@@ -89,21 +92,18 @@ export default function IntentsGrid({
               })
             : "",
       },
-      { field: "payee", headerName: "Payee", minWidth: 160, flex: 1 },
-      { field: "category", headerName: "Category", minWidth: 110 },
+      { field: "payee", headerName: "Payee", flex: 2, minWidth: 150 },
       {
         field: "riskScore",
         headerName: "Risk",
-        minWidth: 130,
+        minWidth: 140,
         cellRenderer: (p: ICellRendererParams<Intent>) => (
           <RiskMeter score={p.data?.riskScore} compact />
         ),
       },
-      { field: "agentId", headerName: "Agent", minWidth: 140 },
     ],
     []
   );
-
   return (
     <div className="grid-wrap">
       <AgGridReact<Intent>
@@ -111,6 +111,7 @@ export default function IntentsGrid({
         rowData={rows}
         columnDefs={columns}
         defaultColDef={{ sortable: true, resizable: true }}
+        suppressHorizontalScroll
         getRowId={(p) => p.data.id}
         rowSelection={{
           mode: "singleRow",
