@@ -1,0 +1,1378 @@
+openapi: 3.1.0
+info:
+  title: AgentPurse API
+  version: 0.1.0
+  summary: Give your AI an allowance, not your credit card.
+  description: |
+    The AgentPurse API (Fastify). Agents submit purchase intents with an agent API key.
+    Risk Guard (deterministic rules, a Channel3 price check, an AI review) approves, denies
+    or escalates each one. Approved intents get a Braintree sandbox authorization and a
+    single-use mandate token; executing the token captures the payment. Owners manage
+    agents, policies, the vault and approvals with an owner JWT.
+
+    Payments are Braintree sandbox transactions (a PayPal service). No real money moves.
+
+    All money is an integer number of cents plus an ISO 4217 currency code.
+
+    Notes for callers:
+    - Error bodies are small JSON objects: `{ "error": "<code>", "message": "...", "fields": [...] }`.
+      `message` and `fields` appear only where noted.
+    - The free-tier Render instance can take up to a minute to wake after idling.
+    - There is no general CORS configuration. The web app calls the API from its own server (BFF).
+      Only `GET /events` answers cross-origin requests, for origins listed in `WEB_ORIGIN`.
+    - Routes under "Agent" need an agent API key. Routes under "Owner" need an owner JWT.
+      `/auth/*`, `/healthz`, `/` and `/events` (stream token) are the exceptions.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: https://demo-yhzi.onrender.com
+    description: Hosted demo (free tier, may need a minute to wake)
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: System
+    description: Liveness and health.
+  - name: Auth
+    description: Owner registration and sign-in.
+  - name: Agents
+    description: Create agents, kill switch, spending policy. Owner JWT.
+  - name: Vault
+    description: Linked sandbox payment methods. Owner JWT.
+  - name: Intents (agent)
+    description: Purchase intents, mandates and execution. Agent API key.
+  - name: Intents (owner)
+    description: Owner approval of escalated intents. Owner JWT.
+  - name: Owner reads
+    description: Owner-scoped intents, audit events and stats. Owner JWT.
+  - name: Live events
+    description: Server-sent events for the dashboard.
+  - name: Assistant
+    description: Read-only AI assistant (NDJSON).
+  - name: Webhooks
+    description: Payment provider callbacks.
+security: []
+paths:
+  /:
+    get:
+      tags: [System]
+      operationId: getRoot
+      summary: Service banner
+      responses:
+        "200":
+          description: The service is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name, status]
+                properties:
+                  name:
+                    type: string
+                    const: agentpurse-api
+                  status:
+                    type: string
+                    const: ok
+  /healthz:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Health check (used by Render)
+      responses:
+        "200":
+          description: Healthy.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: registerOwner
+      summary: Create an owner account
+      description: Rate limited to 10 attempts per 15 minutes per IP. The password is hashed with scrypt.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "201":
+          description: Account created. No token is issued; call `/auth/login`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ownerId, email]
+                properties:
+                  ownerId:
+                    type: string
+                  email:
+                    type: string
+                    format: email
+        "400":
+          $ref: "#/components/responses/InvalidBody"
+        "409":
+          description: Email already registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: email_taken
+                message: Email already registered
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: loginOwner
+      summary: Sign in and receive an owner JWT
+      description: |
+        Rate limited to 5 attempts per 15 minutes per IP and email, and 30 per IP.
+        Unknown email and wrong password return the same 401. The access token lasts one hour.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Signed in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/InvalidBody"
+        "401":
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: unauthorized
+                message: Invalid credentials
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /agents:
+    post:
+      tags: [Agents]
+      operationId: createAgent
+      summary: Create an agent
+      description: The agent API key is returned once. Only its SHA-256 hash is stored.
+      security:
+        - ownerBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgentRequest"
+      responses:
+        "201":
+          description: Agent created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateAgentResponse"
+        "400":
+          $ref: "#/components/responses/InvalidBody"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    get:
+      tags: [Agents]
+      operationId: listAgents
+      summary: List the owner's agents
+      security:
+        - ownerBearer: []
+      responses:
+        "200":
+          description: The owner's agents.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [agents]
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Agent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /agents/{id}/kill:
+    post:
+      tags: [Agents]
+      operationId: killAgent
+      summary: Kill switch. The agent can no longer call the API.
+      security:
+        - ownerBearer: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The agent is disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KillState"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /agents/{id}/restore:
+    post:
+      tags: [Agents]
+      operationId: restoreAgent
+      summary: Re-enable a killed agent
+      security:
+        - ownerBearer: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The agent is enabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KillState"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /agents/{id}/policy:
+    get:
+      tags: [Agents]
+      operationId: getAgentPolicy
+      summary: Read an agent's spending policy
+      security:
+        - ownerBearer: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The policy, or null if none is set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Agents]
+      operationId: setAgentPolicy
+      summary: Replace an agent's spending policy
+      description: Unknown properties are rejected.
+      security:
+        - ownerBearer: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Policy"
+      responses:
+        "200":
+          description: Policy saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyResponse"
+        "400":
+          $ref: "#/components/responses/InvalidBody"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /vault/link:
+    post:
+      tags: [Vault]
+      operationId: linkPaymentMethod
+      summary: Link a payment method (Braintree sandbox)
+      description: |
+        Exchanges a payment method nonce for a vaulted method. In the sandbox the fixed nonce
+        `fake-valid-nonce` links a test card. `ownerId` must match the signed-in owner.
+        Linking the same method twice returns 200 with the existing method.
+      security:
+        - ownerBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkMethodRequest"
+      responses:
+        "201":
+          description: Newly linked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkMethodResponse"
+        "200":
+          description: Already linked; the existing method is returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkMethodResponse"
+        "400":
+          $ref: "#/components/responses/InvalidBody"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "`ownerId` does not match the signed-in owner."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: forbidden
+                message: Owner mismatch
+        "422":
+          description: The provider rejected the payment method.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: payment_method_rejected
+                message: Payment method was rejected
+        "502":
+          description: Provider unavailable or the method could not be stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: provider_unavailable
+                message: Payment provider error
+  /vault/methods:
+    get:
+      tags: [Vault]
+      operationId: listPaymentMethods
+      summary: List the owner's linked payment methods
+      description: Responses are redacted. The provider token is never returned in full.
+      security:
+        - ownerBearer: []
+      responses:
+        "200":
+          description: Linked methods.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [methods]
+                properties:
+                  methods:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PaymentMethod"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          description: Could not load payment methods.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /intents:
+    post:
+      tags: [Intents (agent)]
+      operationId: createIntent
+      summary: Submit a purchase intent
+      description: |
+        Risk Guard runs deterministic rules first, then a Channel3 price check, a prompt-injection
+        check and the AI review. The AI can only make the result stricter, and any AI error or
+        timeout escalates. Possible outcomes:
+
+        - `approve` (201): a hold is placed and a single-use `mandateToken` is returned once.
+        - `escalate` (200): state `escalated`; the owner approves or denies.
+        - `deny` (200): state `denied`.
+
+        `paymentMethodRef` must be a vault method id owned by the agent's owner. Raw provider
+        tokens are rejected with 422.
+      security:
+        - agentKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIntentRequest"
+      responses:
+        "201":
+          description: Approved. Includes the mandate token.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateIntentResponse"
+        "200":
+          description: Escalated or denied. No mandate token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateIntentResponse"
+        "400":
+          $ref: "#/components/responses/InvalidBody"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          description: Unknown payment method, a raw token, or a method the owner does not own.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: invalid_payment_method
+                message: Invalid payment method
+        "502":
+          $ref: "#/components/responses/BadGateway"
+  /intents/{id}:
+    get:
+      tags: [Intents (agent)]
+      operationId: getIntentStatus
+      summary: Poll the status of one of the agent's intents
+      security:
+        - agentKey: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Current state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntentStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /intents/{id}/mandate:
+    post:
+      tags: [Intents (agent)]
+      operationId: getMandate
+      summary: Fetch the mandate after the owner approved an escalated intent
+      description: One mandate per intent. The intent must be `authorized`. A second call returns 409.
+      security:
+        - agentKey: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "201":
+          description: Mandate issued. Valid for 5 minutes.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandateResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /intents/{id}/execute:
+    post:
+      tags: [Intents (agent)]
+      operationId: executeIntent
+      summary: Present the mandate token and capture the payment
+      description: |
+        The token is verified against the stored authorization (intent, amount, currency, payee),
+        consumed atomically, then the hold is captured. A replayed token returns 409 and captures
+        nothing. An expired or mismatched token, or a failed capture, voids the authorization.
+      security:
+        - agentKey: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecuteRequest"
+      responses:
+        "200":
+          description: Captured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecuteResponse"
+        "400":
+          $ref: "#/components/responses/InvalidBody"
+        "401":
+          description: Missing or invalid agent key, or an invalid mandate token (the authorization is voided).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+  /intents/{id}/approve:
+    post:
+      tags: [Intents (owner)]
+      operationId: approveIntent
+      summary: Owner approves an escalated intent
+      description: Places the hold (state `authorized`). The agent then fetches its mandate.
+      security:
+        - ownerBearer: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Approved and authorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerDecision"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The intent is not awaiting approval.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: conflict
+                message: Intent is not awaiting approval
+        "502":
+          $ref: "#/components/responses/BadGateway"
+  /intents/{id}/deny:
+    post:
+      tags: [Intents (owner)]
+      operationId: denyIntent
+      summary: Owner denies an escalated intent
+      security:
+        - ownerBearer: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Denied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerDecision"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The intent is not awaiting approval.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: conflict
+                message: Intent is not awaiting approval
+
+  /owner/intents:
+    get:
+      tags: [Owner reads]
+      operationId: listOwnerIntents
+      summary: List intents across the owner's agents, newest first
+      security:
+        - ownerBearer: []
+      parameters:
+        - name: state
+          in: query
+          schema:
+            $ref: "#/components/schemas/IntentState"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Intents.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [intents]
+                properties:
+                  intents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Intent"
+        "400":
+          $ref: "#/components/responses/InvalidBody"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /owner/intents/{id}:
+    get:
+      tags: [Owner reads]
+      operationId: getOwnerIntent
+      summary: One intent with its audit events
+      security:
+        - ownerBearer: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The intent and its audit trail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntentDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /owner/stats:
+    get:
+      tags: [Owner reads]
+      operationId: getOwnerStats
+      summary: Today's spend and decision counts
+      description: '"Today" is the current UTC day.'
+      security:
+        - ownerBearer: []
+      responses:
+        "200":
+          description: Stats.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /events/token:
+    post:
+      tags: [Live events]
+      operationId: createStreamToken
+      summary: Mint a 60-second stream token for the live feed
+      description: Browsers cannot send headers on `EventSource`, so the stream takes this short-lived token in the query string.
+      security:
+        - ownerBearer: []
+      responses:
+        "201":
+          description: Stream token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [streamToken, expiresAt]
+                properties:
+                  streamToken:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /events:
+    get:
+      tags: [Live events]
+      operationId: streamEvents
+      summary: Server-sent events for the owner's agents
+      description: |
+        Events are named after their `type`. Payloads carry ids and states only, never intent text.
+        A `: ping` comment is sent every 25 seconds. The token is checked once at connect.
+        Cross-origin access is granted only for origins listed in `WEB_ORIGIN`.
+      parameters:
+        - name: stream_token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "An open `text/event-stream`. Each message is `event: <type>` then `data: <OwnerEvent JSON>`."
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/OwnerEvent"
+              example:
+                type: intent.captured
+                intentId: example-intent-id
+                agentId: example-agent-id
+                state: captured
+                at: "2026-11-08T12:00:00.000Z"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /assistant:
+    post:
+      tags: [Assistant]
+      operationId: askAssistant
+      summary: Ask the read-only AI assistant
+      description: |
+        The assistant answers questions about the owner's agents, spend and Risk Guard decisions
+        using four server-side read tools. It cannot approve, deny, create or change anything.
+        Rate limited to 10 requests per minute per owner. The response is newline-delimited JSON
+        (NDJSON), one event per line: `text`, `note`, `error` and a final `done`.
+        If the configured AI provider cannot back the assistant, a friendly `text` event is returned.
+      security:
+        - ownerBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantRequest"
+      responses:
+        "200":
+          description: NDJSON event stream.
+          content:
+            application/x-ndjson:
+              schema:
+                $ref: "#/components/schemas/AssistantEvent"
+              example:
+                type: text
+                delta: You have spent $0.00 today.
+        "400":
+          $ref: "#/components/responses/InvalidBody"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          description: Too many assistant requests.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                const: "60"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /webhooks/payments:
+    post:
+      tags: [Webhooks]
+      operationId: paymentsWebhook
+      summary: Payment provider webhook (Braintree)
+      description: |
+        Braintree posts `application/x-www-form-urlencoded` with `bt_signature` and `bt_payload`.
+        The signature is verified before anything is recorded; a bad or missing signature returns 400.
+        Events are de-duplicated. Registered when a payment provider is configured.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [bt_signature, bt_payload]
+              properties:
+                bt_signature:
+                  type: string
+                bt_payload:
+                  type: string
+      responses:
+        "200":
+          description: Accepted, or already processed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, duplicate]
+        "400":
+          description: Invalid webhook (fail closed).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: invalid_webhook
+
+components:
+  securitySchemes:
+    ownerBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Owner access token (HS256, one hour) from `POST /auth/login`. Stream tokens are rejected here.
+    agentKey:
+      type: http
+      scheme: bearer
+      bearerFormat: agent API key (agk_...)
+      description: "Agent API key returned once by `POST /agents`. Sent as `Authorization: Bearer <key>`."
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    InvalidBody:
+      description: The request body or query failed validation. `fields` lists the offending paths.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: invalid_body
+            message: Invalid request body
+            fields: [amountCents]
+    Unauthorized:
+      description: Missing, invalid or expired credentials. The body is constant.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: unauthorized
+    Forbidden:
+      description: The agent has been killed by its owner.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: forbidden
+    NotFound:
+      description: Unknown id, or it belongs to another owner or agent (indistinguishable by design).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: not_found
+            message: Not found
+    Conflict:
+      description: The intent is in the wrong state, or the mandate was already used or issued.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: conflict
+            message: Intent cannot be executed
+    BadGateway:
+      description: The payment provider failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: bad_gateway
+            message: Upstream error
+    RateLimited:
+      description: Too many attempts.
+      headers:
+        Retry-After:
+          schema:
+            type: string
+            const: "900"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: rate_limited
+            message: Too many attempts
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Machine-readable code.
+        message:
+          type: string
+        fields:
+          type: array
+          items:
+            type: string
+    Credentials:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 12
+          maxLength: 256
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          maxLength: 254
+        password:
+          type: string
+          maxLength: 256
+    LoginResponse:
+      type: object
+      required: [ownerId, accessToken, tokenType, expiresAt]
+      properties:
+        ownerId:
+          type: string
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          const: Bearer
+        expiresAt:
+          type: string
+          format: date-time
+    Policy:
+      type: object
+      description: Spending policy. All limits are integer cents.
+      required:
+        - dailyBudgetCents
+        - perPurchaseCapCents
+        - allowedCategories
+        - blockedPayees
+        - velocityPerHour
+        - velocityPerDay
+      properties:
+        dailyBudgetCents:
+          type: integer
+          minimum: 0
+        perPurchaseCapCents:
+          type: integer
+          minimum: 0
+        allowedCategories:
+          type: array
+          items:
+            type: string
+        blockedPayees:
+          type: array
+          items:
+            type: string
+        allowedPayees:
+          type: array
+          items:
+            type: string
+        velocityPerHour:
+          type: integer
+          minimum: 0
+        velocityPerDay:
+          type: integer
+          minimum: 0
+    PolicyResponse:
+      type: object
+      required: [agentId, policy]
+      properties:
+        agentId:
+          type: string
+        policy:
+          oneOf:
+            - $ref: "#/components/schemas/Policy"
+            - type: "null"
+    Agent:
+      type: object
+      required: [id, name, killed, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        killed:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    CreateAgentRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        policy:
+          $ref: "#/components/schemas/Policy"
+    CreateAgentResponse:
+      type: object
+      required: [agent, apiKey]
+      properties:
+        agent:
+          $ref: "#/components/schemas/Agent"
+        apiKey:
+          type: string
+          description: Shown once. Store it in the agent's secret store.
+    KillState:
+      type: object
+      required: [id, killed]
+      properties:
+        id:
+          type: string
+        killed:
+          type: boolean
+    LinkMethodRequest:
+      type: object
+      additionalProperties: false
+      required: [ownerId, nonce]
+      properties:
+        ownerId:
+          type: string
+          maxLength: 128
+          description: Must equal the signed-in owner's id.
+        nonce:
+          type: string
+          maxLength: 512
+          description: Braintree payment method nonce. The sandbox accepts `fake-valid-nonce`.
+    PaymentMethod:
+      type: object
+      required: [id, cardType, last4, tokenRef, createdAt]
+      properties:
+        id:
+          type: string
+          description: Use this as `paymentMethodRef` when creating an intent.
+        cardType:
+          type: [string, "null"]
+        last4:
+          type: [string, "null"]
+        tokenRef:
+          type: string
+          description: Redacted provider token (`****` plus the last four characters).
+        createdAt:
+          type: string
+          format: date-time
+    LinkMethodResponse:
+      type: object
+      required: [method]
+      properties:
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+    IntentState:
+      type: string
+      enum: [pending, denied, escalated, authorized, captured, voided, failed]
+    Decision:
+      type: string
+      enum: [approve, deny, escalate]
+    CreateIntentRequest:
+      type: object
+      additionalProperties: false
+      required: [amountCents, currency, payee, category, description, justification, paymentMethodRef]
+      properties:
+        amountCents:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 100000000000
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        payee:
+          type: string
+          minLength: 1
+          maxLength: 253
+          description: Merchant domain.
+        category:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        justification:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Treated as untrusted text by Risk Guard.
+        paymentMethodRef:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: A vault payment method id.
+        productId:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Optional Channel3 product id for the price check. Never stored.
+    CreateIntentResponse:
+      type: object
+      required: [intentId, state, decision, riskScore, reason]
+      properties:
+        intentId:
+          type: string
+        state:
+          $ref: "#/components/schemas/IntentState"
+        decision:
+          $ref: "#/components/schemas/Decision"
+        riskScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        reason:
+          type: string
+          maxLength: 280
+        mandateToken:
+          type: string
+          description: Present only when approved. Returned once.
+        expiresAt:
+          type: string
+          format: date-time
+    IntentStatus:
+      type: object
+      required: [intentId, state, decision, riskScore]
+      properties:
+        intentId:
+          type: string
+        state:
+          $ref: "#/components/schemas/IntentState"
+        decision:
+          type: [string, "null"]
+        riskScore:
+          type: [integer, "null"]
+    MandateResponse:
+      type: object
+      required: [intentId, mandateToken, expiresAt]
+      properties:
+        intentId:
+          type: string
+        mandateToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    ExecuteRequest:
+      type: object
+      additionalProperties: false
+      required: [mandateToken]
+      properties:
+        mandateToken:
+          type: string
+          minLength: 1
+          maxLength: 4096
+    ExecuteResponse:
+      type: object
+      required: [intentId, state]
+      properties:
+        intentId:
+          type: string
+        state:
+          type: string
+          const: captured
+    OwnerDecision:
+      type: object
+      required: [intentId, state]
+      properties:
+        intentId:
+          type: string
+        state:
+          $ref: "#/components/schemas/IntentState"
+    Intent:
+      type: object
+      required:
+        - id
+        - agentId
+        - amountCents
+        - currency
+        - payee
+        - category
+        - description
+        - justification
+        - paymentMethodId
+        - state
+        - decision
+        - riskScore
+        - createdAt
+      properties:
+        id:
+          type: string
+        agentId:
+          type: string
+        amountCents:
+          type: integer
+        currency:
+          type: string
+        payee:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        justification:
+          type: string
+        paymentMethodId:
+          type: string
+        state:
+          $ref: "#/components/schemas/IntentState"
+        decision:
+          type: [string, "null"]
+        riskScore:
+          type: [integer, "null"]
+        createdAt:
+          type: string
+          format: date-time
+    AuditEvent:
+      type: object
+      required: [event, meta, createdAt]
+      properties:
+        event:
+          type: string
+          description: For example `intent_created`, `risk_approved`, `intent_escalated`, `owner_approved`, `mandate_issued`, `mandate_consumed`, `captured`.
+        meta:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+    IntentDetail:
+      type: object
+      required: [intent, events]
+      properties:
+        intent:
+          $ref: "#/components/schemas/Intent"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+    Stats:
+      type: object
+      required: [since, spentToday, countsByDecision, countsByState]
+      properties:
+        since:
+          type: string
+          format: date-time
+          description: Start of the current UTC day.
+        spentToday:
+          type: array
+          description: Captured spend per currency, integer cents.
+          items:
+            type: object
+            required: [currency, amountCents]
+            properties:
+              currency:
+                type: string
+              amountCents:
+                type: integer
+        countsByDecision:
+          type: object
+          required: [approve, deny, escalate, none]
+          properties:
+            approve:
+              type: integer
+            deny:
+              type: integer
+            escalate:
+              type: integer
+            none:
+              type: integer
+        countsByState:
+          type: object
+          additionalProperties:
+            type: integer
+    OwnerEvent:
+      type: object
+      required: [type, intentId, agentId, at]
+      properties:
+        type:
+          type: string
+          enum:
+            - intent.created
+            - intent.decided
+            - intent.authorized
+            - intent.captured
+            - intent.denied
+        intentId:
+          type: string
+        agentId:
+          type: string
+        state:
+          type: string
+        decision:
+          type: string
+        at:
+          type: string
+          format: date-time
+    AssistantRequest:
+      type: object
+      additionalProperties: false
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 20
+          description: The last message must have role `user`.
+          items:
+            type: object
+            additionalProperties: false
+            required: [role, text]
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              text:
+                type: string
+                minLength: 1
+                maxLength: 4000
+    AssistantEvent:
+      oneOf:
+        - type: object
+          required: [type, delta]
+          properties:
+            type:
+              const: text
+            delta:
+              type: string
+        - type: object
+          required: [type, text]
+          properties:
+            type:
+              const: note
+            text:
+              type: string
+        - type: object
+          required: [type, message]
+          properties:
+            type:
+              const: error
+            message:
+              type: string
+        - type: object
+          required: [type]
+          properties:
+            type:
+              const: done

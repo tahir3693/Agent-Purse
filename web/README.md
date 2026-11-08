@@ -67,7 +67,7 @@ AG Studio components are client-only. They load with `next/dynamic(() => import(
 
 The Studio Agent Framework assistant is READ-ONLY. Its adapter (`lib/assistant/adapter.ts`, `executeTurn`) sends only the conversation text to `POST /api/assistant`, which proxies to the API's `POST /assistant` (owner JWT, 10 requests per minute per owner).
 
-- The API holds `ANTHROPIC_API_KEY` and `AI_MODEL`, owns the system prompt, and runs four server-side read tools scoped to the signed-in owner: stats, intents, agents and policies, and decision explanations.
+- The API holds the AI provider key (`ANTHROPIC_API_KEY` or `AI_API_KEY`, per `AI_PROVIDER`) and `AI_MODEL`, owns the system prompt, and runs four server-side read tools scoped to the signed-in owner: stats, intents, agents and policies, and decision explanations.
 - No tool can approve, deny, create, kill or change anything. Tool results and intent text are passed to the model as untrusted data.
 - Any model error or timeout fails closed with a short message.
 - The browser never sees an LLM key, and the agent has no Studio tools, so it cannot change the dashboard either.
