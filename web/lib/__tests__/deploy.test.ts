@@ -12,6 +12,7 @@ const SERVER_SECRETS = [
   "BRAINTREE_PRIVATE_KEY",
   "PAYPAL_CLIENT_SECRET",
   "ANTHROPIC_API_KEY",
+  "GEMINI_API_KEY",
 ];
 
 function walk(dir: string, out: string[] = []): string[] {

@@ -51,11 +51,23 @@ The following environment variables are required. They are documented in `.env.e
 | `PAYPAL_CLIENT_SECRET` | PayPal API client secret                                                           |
 | `PAYPAL_WEBHOOK_ID`    | PayPal webhook identifier for verifying webhook events                             |
 | `PAYPAL_BASE_URL`      | PayPal API base URL (sandbox or live)                                              |
-| `ANTHROPIC_API_KEY`    | API key for Anthropic model access                                                 |
-| `AI_MODEL`             | Identifier of the AI model to use                                                  |
+| `AI_PROVIDER`          | Optional: `anthropic` (default), `gemini` or `off` (see below)                     |
+| `ANTHROPIC_API_KEY`    | API key for Anthropic; required only when `AI_PROVIDER=anthropic`                  |
+| `GEMINI_API_KEY`       | Optional: Gemini API key; required only when `AI_PROVIDER=gemini`                  |
+| `AI_MODEL`             | Model id for the selected provider (`claude-sonnet-5-5`, or `gemini-3.8-flash`)    |
 | `CHANNEL3_API_KEY`     | API key for Channel3 integration                                                   |
 | `AG_GRID_LICENSE_KEY`  | AG Grid enterprise license key                                                     |
 | `APP_BASE_URL`         | Base URL of the deployed application                                               |
+
+### AI provider (Risk Guard)
+
+`AI_PROVIDER` selects who performs the AI review step of Risk Guard. Deterministic rules always run first and the AI can only make a decision stricter. Any AI error or timeout escalates to the owner (fail closed).
+
+- `anthropic` (default): needs `ANTHROPIC_API_KEY`. Also backs the AG Studio assistant.
+- `gemini`: needs `GEMINI_API_KEY`; `AI_MODEL` defaults to `gemini-3.8-flash` (a Flash model with a free tier in the Gemini API pricing docs). The key is sent in the `x-goog-api-key` header only. Free-tier prompts may be used by Google to improve its products, so use sandbox data only. The assistant is not available on this provider; it replies with a short "not available" message.
+- `off`: no AI call. Rules plus the Channel3 price check decide: a purchase within the auto-approve limit with a normal price may auto-approve, everything else escalates. Decision reasons start with "AI review disabled" and the audit outcome is `disabled`.
+
+`pnpm demo:check` tests the selected provider and prints a sanitized result (provider, kind, HTTP status, truncated message; never keys).
 
 ### License
 

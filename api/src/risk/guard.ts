@@ -18,7 +18,8 @@ export interface RiskGuardDeps {
   evaluateRules?: typeof defaultEvaluateRules;
   /** Channel3 price check. Errors are mapped to `unknown`. */
   priceCheck: (input: PriceCheckInput) => Promise<PriceCheckResult>;
-  reviewer: RiskReviewer;
+  /** null when AI_PROVIDER=off: no AI call is made. */
+  reviewer: RiskReviewer | null;
   config: RiskGuardConfig;
   /** Clock in epoch ms; defaults to Date.now. */
   now?: () => number;
@@ -39,10 +40,11 @@ function isAbortError(err: unknown): boolean {
 
 /** Call the reviewer with a hard timeout and map every failure to an AiResult. */
 async function runReview(
-  reviewer: RiskReviewer,
+  reviewer: RiskReviewer | null,
   req: ReviewRequest,
   timeoutMs: number,
 ): Promise<AiResult> {
+  if (reviewer === null) return { outcome: "disabled" };
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {

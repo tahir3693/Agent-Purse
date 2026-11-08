@@ -103,7 +103,7 @@ export class FakeReviewer implements RiskReviewer {
 }
 
 export function deps(
-  reviewer: RiskReviewer,
+  reviewer: RiskReviewer | null,
   priceResult: PriceCheckResult | Error = price("ok"),
   config: RiskGuardConfig = CONFIG,
 ): RiskGuardDeps & { priceCheck: ReturnType<typeof fakePrice> } {

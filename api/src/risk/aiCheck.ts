@@ -1,46 +1,67 @@
-// One real Anthropic Messages call to confirm ANTHROPIC_API_KEY and AI_MODEL
-// work. Reports only OK or a sanitized diagnostic (kind, status, redacted and
-// truncated provider message); never the key, headers, prompt or full body.
-import type { AnthropicConfig } from "./config.js";
+// One real call to the selected AI provider (AI_PROVIDER) to confirm its key and
+// AI_MODEL work. Reports only OK or a sanitized diagnostic (kind, status,
+// redacted and truncated provider message); never the key, headers, prompt or
+// full body. AI_PROVIDER=off makes no call.
+import type { AiConfig } from "./config.js";
 import { diagnose, errorFromResponse, formatDiagnostic, type AiDiagnostic } from "./diagnostics.js";
+import { geminiUrl } from "./gemini.js";
 
-export type AiCheckResult = { ok: true; model: string } | { ok: false; diagnostic: AiDiagnostic };
+export type AiCheckResult =
+  | { ok: true; provider: "anthropic" | "gemini"; model: string }
+  | { ok: true; provider: "off" }
+  | { ok: false; diagnostic: AiDiagnostic };
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
 export async function runAiCheck(
-  config: AnthropicConfig,
+  config: AiConfig,
   fetchImpl: typeof fetch = (i, init) => fetch(i, init),
   timeoutMs = 20_000
 ): Promise<AiCheckResult> {
+  if (config.provider === "off") return { ok: true, provider: "off" };
+
   const secrets = [config.apiKey];
+  const { provider, model } = config;
   try {
-    const res = await fetchImpl(ANTHROPIC_URL, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": config.apiKey,
-        "anthropic-version": ANTHROPIC_VERSION,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        max_tokens: 5,
-        messages: [{ role: "user", content: "Reply with OK." }],
-      }),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    const res =
+      provider === "gemini"
+        ? await fetchImpl(geminiUrl(model), {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-goog-api-key": config.apiKey },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: "Reply with OK." }] }],
+              generationConfig: { maxOutputTokens: 256 },
+            }),
+            signal: AbortSignal.timeout(timeoutMs),
+          })
+        : await fetchImpl(ANTHROPIC_URL, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-api-key": config.apiKey,
+              "anthropic-version": ANTHROPIC_VERSION,
+            },
+            body: JSON.stringify({
+              model,
+              max_tokens: 5,
+              messages: [{ role: "user", content: "Reply with OK." }],
+            }),
+            signal: AbortSignal.timeout(timeoutMs),
+          });
     if (!res.ok) {
-      return { ok: false, diagnostic: diagnose(await errorFromResponse(res), config.model, secrets) };
+      return { ok: false, diagnostic: diagnose(await errorFromResponse(res, provider), model, secrets, provider) };
     }
     // Drain without reading into output.
     await res.body?.cancel().catch(() => undefined);
-    return { ok: true, model: config.model };
+    return { ok: true, provider, model };
   } catch (error) {
-    return { ok: false, diagnostic: diagnose(error, config.model, secrets) };
+    return { ok: false, diagnostic: diagnose(error, model, secrets, provider) };
   }
 }
 
 export function formatAiCheck(r: AiCheckResult): string {
-  return r.ok ? `AI check: OK (model ${r.model})` : `AI check: FAILED (${formatDiagnostic(r.diagnostic)})`;
+  if (!r.ok) return `AI check: FAILED (${formatDiagnostic(r.diagnostic)})`;
+  if (r.provider === "off") return "AI check: AI_PROVIDER=off (AI review disabled; no call made)";
+  return `AI check: OK (provider ${r.provider}, model ${r.model})`;
 }

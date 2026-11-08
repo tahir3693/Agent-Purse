@@ -24,7 +24,7 @@ Monorepo via pnpm workspaces. Node 20, TypeScript everywhere.
 
 ## AI provider
 
-Abstraction RiskReviewer with one LLM implementation (Anthropic Claude via ANTHROPIC_API_KEY; model in AI_MODEL). If the AI call fails or times out, FAIL CLOSED: escalate to the human, never auto-approve.
+Abstraction RiskReviewer with switchable implementations via AI_PROVIDER = anthropic (default, ANTHROPIC_API_KEY) | gemini (GEMINI_API_KEY, default model gemini-3.8-flash) | off (no AI call; rules and price check only, reasons say "AI review disabled"). Model in AI_MODEL. If the AI call fails or times out, FAIL CLOSED: escalate to the human, never auto-approve. GEMINI_API_KEY is a server-only secret.
 
 ## Engineering working agreements
 

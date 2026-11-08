@@ -18,13 +18,15 @@ export interface AiReview {
   flagPromptInjection: boolean;
 }
 
-/** Outcome of the AI review stage. `skipped` means the stage was never reached. */
-export type AiOutcome = "ok" | "ai_error" | "ai_timeout" | "ai_parse" | "skipped";
+/** Outcome of the AI review stage. `skipped` means the stage was never reached; `disabled` means AI review is switched off (AI_PROVIDER=off). */
+export type AiOutcome = "ok" | "ai_error" | "ai_timeout" | "ai_parse" | "skipped" | "disabled";
 
 /** Result of the AI stage as consumed by combine. */
 export type AiResult =
   | { outcome: "ok"; review: AiReview }
-  | { outcome: "ai_error" | "ai_timeout" | "ai_parse" };
+  | { outcome: "ai_error" | "ai_timeout" | "ai_parse" }
+  /** AI_PROVIDER=off: no AI review was performed. */
+  | { outcome: "disabled" };
 
 /** Last pipeline stage that ran for a decision. */
 export type RiskStage = "rules" | "price" | "ai";

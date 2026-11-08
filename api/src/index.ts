@@ -16,8 +16,8 @@ import {
 } from "./db/prisma.js";
 import { createEventBus } from "./events/bus.js";
 import { createPaymentProvider } from "./payments/factory.js";
-import { AnthropicRiskReviewer } from "./risk/anthropic.js";
-import { loadAnthropicConfig } from "./risk/config.js";
+import { loadAiConfig } from "./risk/config.js";
+import { createRiskReviewer } from "./risk/provider.js";
 import { evaluateRisk, type RiskGuardConfig } from "./risk/index.js";
 import { buildServer } from "./server.js";
 
@@ -51,14 +51,14 @@ async function main(): Promise<void> {
   if (jwtSecret.length < MIN_MANDATE_KEY_LENGTH) {
     fail(`Invalid environment variable: JWT_SECRET (must be at least ${MIN_MANDATE_KEY_LENGTH} characters)`);
   }
-  requireEnv("ANTHROPIC_API_KEY");
+  // The selected provider's key (ANTHROPIC_API_KEY or GEMINI_API_KEY) is validated by loadAiConfig.
   requireEnv("CHANNEL3_API_KEY");
 
   const appLog: { current?: { warn(obj: object, msg: string): void } } = {};
   let wiring;
   try {
     const paymentProvider = createPaymentProvider(env);
-    const anthropic = loadAnthropicConfig(env);
+    const ai = loadAiConfig(env);
     const channel3 = createChannel3Module({ client: buildChannel3Client(env) });
     const db = createPrismaClient();
 
@@ -67,8 +67,7 @@ async function main(): Promise<void> {
       maxAutoApproveRisk: MAX_AUTO_APPROVE_RISK,
       aiTimeoutMs: AI_TIMEOUT_MS,
     };
-    const reviewer = new AnthropicRiskReviewer({
-      config: anthropic,
+    const reviewer = createRiskReviewer(ai, {
       timeoutMs: AI_TIMEOUT_MS,
       // The app logger exists only after buildServer; fall back to console before that.
       logger: {
@@ -131,7 +130,8 @@ async function main(): Promise<void> {
       // Read-only AI assistant: only lookup store methods are passed in.
       assistant: {
         reads: readOnlyView({ agents, policies, intents: intentStore, audit }),
-        model: new AnthropicAssistantModel(anthropic),
+        // Only the Anthropic provider backs the assistant; others get a friendly in-chat message.
+        model: ai.provider === "anthropic" ? new AnthropicAssistantModel(ai) : null,
         jwtSecret,
       },
     };

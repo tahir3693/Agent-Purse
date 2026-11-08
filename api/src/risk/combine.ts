@@ -9,6 +9,8 @@
 //   5. AI approved === false                           -> escalate
 //   6. AI riskScore > maxAutoApproveRisk               -> escalate
 //   7. otherwise                                       -> approve
+// AI disabled (AI_PROVIDER=off): stage 4-6 are replaced by "approve only if the
+// price is ok, else escalate", and the reason is prefixed "AI review disabled".
 // Stages 2 and 3 do not depend on the AI, so a high price or an amount above
 // the auto-approve limit can never end in approve (spec-11a).
 // riskScore = max(AI score, floors): high price 70, unknown 50, injection 100.
@@ -30,6 +32,7 @@ import type {
 export const PRICE_HIGH_FLOOR = 70;
 export const PRICE_UNKNOWN_FLOOR = 50;
 export const INJECTION_FLOOR = 100;
+export const AI_DISABLED_FLOOR = 50;
 
 export interface CombineSignals {
   rules: RuleEvaluationResult;
@@ -73,7 +76,10 @@ export function combine(
   if (price.status === "high") floor = Math.max(floor, PRICE_HIGH_FLOOR);
   if (price.status === "unknown") floor = Math.max(floor, PRICE_UNKNOWN_FLOOR);
   if (flagPromptInjection) floor = Math.max(floor, INJECTION_FLOOR);
-  if (!aiOk) floor = 100;
+  const disabled = ai.outcome === "disabled";
+  // Disabled AI: an unreviewed score, never 0 and never claiming a review.
+  if (disabled) floor = Math.max(floor, AI_DISABLED_FLOOR);
+  else if (!aiOk) floor = 100;
   const riskScore = Math.max(aiOk?.riskScore ?? 0, floor);
 
   let decision: Decision;
@@ -87,6 +93,15 @@ export function combine(
   } else if (amountCents > config.autoApproveBelowCents) {
     decision = "escalate";
     reason = "amount above auto-approve limit; owner approval required";
+  } else if (disabled) {
+    // Deterministic-only mode: auto-approve only when the price is confirmed normal.
+    if (price.status === "ok") {
+      decision = "approve";
+      reason = "approved on rules and price check only";
+    } else {
+      decision = "escalate";
+      reason = "price not confirmed as normal; owner approval required";
+    }
   } else if (!aiOk) {
     decision = "escalate";
     reason = `AI review unavailable (${ai.outcome}); human review required`;
@@ -100,6 +115,8 @@ export function combine(
     decision = "approve";
     reason = "passed rules, price check and AI review";
   }
+
+  if (disabled) reason = `AI review disabled; ${reason}`;
 
   const audit: RiskAuditMeta = toRiskAuditMeta({
     stageReached: "ai",

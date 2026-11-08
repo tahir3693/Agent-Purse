@@ -3,7 +3,7 @@
 
 import type { AnthropicConfig } from "./config.js";
 import {
-  AnthropicCallError,
+  AiCallError,
   diagnose,
   errorFromResponse,
   logAiFailure,
@@ -95,20 +95,20 @@ export class AnthropicRiskReviewer implements RiskReviewer {
     try {
       payload = (await res.json()) as AnthropicMessageResponse;
     } catch {
-      throw new AnthropicCallError("Anthropic response was not valid JSON", "parse");
+      throw new AiCallError("Anthropic response was not valid JSON", "parse");
     }
 
     // Find the first text block; it need not be first (e.g. thinking blocks).
     const text = payload.content?.find((b) => b.type === "text" && typeof b.text === "string")?.text;
     if (!text) {
-      throw new AnthropicCallError("Anthropic response had no text content", "parse");
+      throw new AiCallError("Anthropic response had no text content", "parse");
     }
 
     try {
       // TODO(verify): JSON-only compliance without tool use; strip code fences if the model adds them.
       return JSON.parse(text) as unknown;
     } catch {
-      throw new AnthropicCallError("Anthropic text content was not valid JSON", "parse");
+      throw new AiCallError("Anthropic text content was not valid JSON", "parse");
     }
   }
 }

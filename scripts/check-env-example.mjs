@@ -14,6 +14,10 @@ const SAFE_LITERALS = new Set([
   "paypal",
   "sandbox",
   "claude-sonnet-5-5",
+  "gemini-3.8-flash",
+  "anthropic",
+  "gemini",
+  "off",
 ]);
 const SAFE_HOSTS = new Set([
   "localhost",
@@ -24,6 +28,7 @@ const MAX_LEN = 80;
 // Non-secret configuration: never fails the check.
 const NON_SECRET = new Set([
   "AI_MODEL",
+  "AI_PROVIDER",
   "PORT",
   "HOST",
   "PAYMENT_PROVIDER",

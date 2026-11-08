@@ -1,11 +1,12 @@
-// pnpm demo:check. Loads the root .env (node --env-file-if-exists). Prints one line.
+// pnpm demo:check. Loads the root .env (node --env-file-if-exists). Prints one line
+// for the provider selected by AI_PROVIDER (anthropic | gemini | off).
 import { formatAiCheck, runAiCheck } from "./aiCheck.js";
-import { loadAnthropicConfig } from "./config.js";
+import { loadAiConfig } from "./config.js";
 
 async function main(): Promise<void> {
   let config;
   try {
-    config = loadAnthropicConfig(process.env);
+    config = loadAiConfig(process.env);
   } catch (err) {
     // Names the variable only.
     console.error(

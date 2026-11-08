@@ -195,13 +195,17 @@ describe("POST /assistant auth and input", () => {
     expect(s.stub.requests).toHaveLength(0);
   });
 
-  it("503 naming ANTHROPIC_API_KEY when no model is configured", async () => {
+  it("replies with a friendly in-band message when no model is configured", async () => {
     const s = await setup(() => text("hi"), { model: "none" });
     const res = await s.ask(QUESTION);
-    expect(res.statusCode).toBe(503);
-    expect(res.json()).toMatchObject({
-      message: "Missing required environment variable: ANTHROPIC_API_KEY",
-    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("application/x-ndjson");
+    const ev = s.events(res.body);
+    expect(ev).toHaveLength(2);
+    expect(ev[0]).toMatchObject({ type: "text" });
+    expect(String(ev[0]!["delta"])).toContain("not available");
+    expect(ev[1]).toEqual({ type: "done" });
+    expect(s.stub.requests).toHaveLength(0);
   });
 
   it("rate-limits per owner (10 per minute); other owners are unaffected", async () => {
