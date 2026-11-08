@@ -6,14 +6,35 @@
 // Request shape follows Groq's docs: POST {base}/chat/completions with
 // response_format {"type": "json_object"} and an explicit JSON instruction in
 // the prompt (https://console.groq.com/docs/structured-outputs).
+import { createHash } from "node:crypto";
 import type { OpenAiConfig } from "./config.js";
 import { AiCallError, diagnose, errorFromResponse, logAiFailure, type DiagLogger } from "./diagnostics.js";
-import { buildSystemPrompt, buildUserMessage } from "./prompt.js";
+import { buildCompactSystemPrompt, buildUserMessage } from "./prompt.js";
 import type { ReviewRequest, RiskReviewer } from "./reviewer.js";
 
-// Reasoning models spend output tokens on thinking, so keep this generous.
-const MAX_OUTPUT_TOKENS = 2048;
+// Free tiers allow very few tokens per minute, so the verdict budget is small.
+// It covers the JSON verdict plus the few reasoning tokens left at effort "low".
+const MAX_OUTPUT_TOKENS = 400;
 
+/** Identical requests within this window reuse the previous verdict. */
+export const REVIEW_CACHE_TTL_MS = 60_000;
+const MAX_CACHE_ENTRIES = 100;
+
+/**
+ * Groq's reasoning docs (https://console.groq.com/docs/reasoning) define
+ * `reasoning_effort` for GPT-OSS models with low | medium | high. "low" is the
+ * lowest. It is sent only to Groq-hosted gpt-oss models, since other
+ * OpenAI-compatible hosts may not accept the parameter.
+ */
+export function reasoningParams(config: { baseUrl: string; model: string }): { reasoning_effort?: "low" } {
+  let host = "";
+  try {
+    host = new URL(config.baseUrl).hostname;
+  } catch {
+    // normalizeBaseUrl already validated it; treat anything else as "not Groq".
+  }
+  return host === "api.groq.com" && /gpt-oss/i.test(config.model) ? { reasoning_effort: "low" } : {};
+}
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 interface ChatResponse {
@@ -57,6 +78,10 @@ export interface OpenAiReviewerOptions {
   timeoutMs?: number;
   /** Receives one sanitized line per failure; defaults to console. */
   logger?: DiagLogger;
+  /** Clock for the verdict cache; defaults to Date.now. */
+  now?: () => number;
+  /** Verdict cache window in ms; 0 disables it. Defaults to 60 seconds. */
+  cacheTtlMs?: number;
 }
 
 const consoleLogger: DiagLogger = {
@@ -68,15 +93,54 @@ export class OpenAiRiskReviewer implements RiskReviewer {
   private readonly fetchImpl: FetchLike;
   private readonly timeoutMs: number;
   private readonly logger: DiagLogger;
+  private readonly now: () => number;
+  private readonly cacheTtlMs: number;
+  private readonly cache = new Map<string, { at: number; value: unknown }>();
+  private readonly inFlight = new Map<string, Promise<unknown>>();
 
   constructor(opts: OpenAiReviewerOptions) {
     this.config = opts.config;
     this.fetchImpl = opts.fetch ?? ((input, init) => fetch(input, init));
     this.timeoutMs = opts.timeoutMs ?? 12_000;
     this.logger = opts.logger ?? consoleLogger;
+    this.now = opts.now ?? Date.now;
+    this.cacheTtlMs = opts.cacheTtlMs ?? REVIEW_CACHE_TTL_MS;
+  }
+
+  /** Stable key over the model and every reviewed field; the raw text is hashed, never stored. */
+  private cacheKey(req: ReviewRequest): string {
+    return createHash("sha256")
+      .update(JSON.stringify([this.config.model, buildUserMessage(req)]))
+      .digest("hex");
   }
 
   async review(req: ReviewRequest, opts: { signal: AbortSignal }): Promise<unknown> {
+    const key = this.cacheTtlMs > 0 ? this.cacheKey(req) : null;
+    if (key) {
+      const hit = this.cache.get(key);
+      if (hit && this.now() - hit.at < this.cacheTtlMs) return hit.value;
+      // Same request already on its way: share its result instead of spending tokens twice.
+      const pending = this.inFlight.get(key);
+      if (pending) return pending;
+    }
+    const run = this.reviewUncached(req, opts);
+    if (!key) return run;
+    this.inFlight.set(key, run);
+    try {
+      const value = await run;
+      // Only successful verdicts are cached; failures are never reused.
+      this.cache.set(key, { at: this.now(), value });
+      if (this.cache.size > MAX_CACHE_ENTRIES) {
+        const oldest = this.cache.keys().next().value;
+        if (oldest !== undefined) this.cache.delete(oldest);
+      }
+      return value;
+    } finally {
+      this.inFlight.delete(key);
+    }
+  }
+
+  private async reviewUncached(req: ReviewRequest, opts: { signal: AbortSignal }): Promise<unknown> {
     try {
       return await this.call(req, opts);
     } catch (err) {
@@ -96,9 +160,10 @@ export class OpenAiRiskReviewer implements RiskReviewer {
       model: this.config.model,
       temperature: 0,
       max_tokens: MAX_OUTPUT_TOKENS,
+      ...reasoningParams(this.config),
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: buildSystemPrompt() },
+        { role: "system", content: buildCompactSystemPrompt() },
         { role: "user", content: buildUserMessage(req) },
       ],
     };

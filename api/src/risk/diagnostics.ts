@@ -22,6 +22,8 @@ export interface AiDiagnostic {
   /** Redacted, truncated to 200 chars. */
   message: string;
   model: string;
+  /** Sanitized Retry-After value (seconds) when the provider sent one, e.g. on 429. */
+  retryAfter?: string;
 }
 
 export interface DiagLogger {
@@ -57,6 +59,7 @@ export class AiCallError extends Error {
     readonly providerType?: string,
     readonly providerMessage?: string,
     readonly provider: string = "anthropic",
+    readonly retryAfter?: string,
   ) {
     super(message);
     this.name = "AiCallError";
@@ -109,7 +112,14 @@ export async function errorFromResponse(res: Response, provider = "anthropic"): 
     providerType,
     providerMessage,
     provider,
+    parseRetryAfter(res.headers.get("retry-after")),
   );
+}
+
+/** Keeps only a plain seconds value (e.g. "2" or "7.66s"); anything else is dropped. */
+export function parseRetryAfter(raw: string | null | undefined): string | undefined {
+  const v = raw?.trim();
+  return v && /^\d{1,6}(\.\d{1,3})?s?$/.test(v) ? v : undefined;
 }
 
 export function diagnose(
@@ -126,6 +136,7 @@ export function diagnose(
       errorType: sanitizeText(err.providerType ?? err.name, secrets),
       message: sanitizeText(err.providerMessage ?? err.message, secrets),
       model,
+      ...(err.retryAfter !== undefined ? { retryAfter: err.retryAfter } : {}),
     };
   }
   if (err instanceof Error) {
@@ -149,5 +160,6 @@ export function logAiFailure(logger: DiagLogger, diag: AiDiagnostic): void {
 
 export function formatDiagnostic(d: AiDiagnostic): string {
   const status = d.httpStatus !== undefined ? ` status=${d.httpStatus}` : "";
-  return `provider=${d.provider} kind=${d.kind}${status} type=${d.errorType} model=${d.model} message=${d.message}`;
+  const retry = d.retryAfter !== undefined ? ` retryAfter=${d.retryAfter}` : "";
+  return `provider=${d.provider} kind=${d.kind}${status}${retry} type=${d.errorType} model=${d.model} message=${d.message}`;
 }

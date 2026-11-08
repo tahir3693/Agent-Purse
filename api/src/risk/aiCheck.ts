@@ -5,7 +5,7 @@
 import type { AiConfig } from "./config.js";
 import { diagnose, errorFromResponse, formatDiagnostic, type AiDiagnostic } from "./diagnostics.js";
 import { geminiUrl, supportsThinkingLevel, THINKING_LEVEL } from "./gemini.js";
-import { chatCompletionsUrl } from "./openai.js";
+import { chatCompletionsUrl, reasoningParams } from "./openai.js";
 
 export type AiCheckResult =
   | { ok: true; provider: "anthropic" | "gemini" | "openai"; model: string; elapsedMs: number }
@@ -34,7 +34,8 @@ export async function runAiCheck(
             headers: { "content-type": "application/json", authorization: `Bearer ${config.apiKey}` },
             body: JSON.stringify({
               model,
-              max_tokens: 256,
+              max_tokens: 64,
+              ...reasoningParams(config),
               messages: [{ role: "user", content: "Reply with OK." }],
             }),
             signal: AbortSignal.timeout(timeoutMs),

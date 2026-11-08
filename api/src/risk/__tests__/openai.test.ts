@@ -10,7 +10,7 @@ import {
 } from "../config.js";
 import { redactSecrets } from "../diagnostics.js";
 import { evaluateRisk } from "../guard.js";
-import { chatCompletionsUrl, extractJson, OpenAiRiskReviewer } from "../openai.js";
+import { chatCompletionsUrl, extractJson, OpenAiRiskReviewer, reasoningParams } from "../openai.js";
 import { createRiskReviewer } from "../provider.js";
 import type { ReviewRequest } from "../reviewer.js";
 import { CONFIG, deps, price, riskInput } from "./helpers.js";
@@ -129,6 +129,143 @@ describe("OpenAiRiskReviewer error kinds", () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]!.obj).toMatchObject({ event: "ai_review_failed", provider: "openai", kind, model: "test-model" });
     expect(lines[0]!.obj["httpStatus"]).toBe(status);
+  });
+});
+
+describe("token budget", () => {
+  it("uses a small max_tokens and a compact system prompt", async () => {
+    let body: { max_tokens: number; messages: Array<{ role: string; content: string }> } | undefined;
+    const { reviewer } = setup(async (_u, i) => {
+      body = JSON.parse(i.body as string);
+      return ok(JSON.stringify(REVIEW));
+    });
+    await reviewer.review(req, { signal: new AbortController().signal });
+    expect(body!.max_tokens).toBeLessThanOrEqual(500);
+    expect(body!.messages[0]!.content.length).toBeLessThan(700);
+    expect(body!.messages[0]!.content).toContain("untrusted data");
+    expect(body!.messages[0]!.content).toContain("flagPromptInjection");
+  });
+
+  it("sends reasoning_effort low only to Groq-hosted gpt-oss models", () => {
+    const groq = "https://api.groq.com/openai/v1";
+    expect(reasoningParams({ baseUrl: groq, model: "openai/gpt-oss-20b" })).toEqual({ reasoning_effort: "low" });
+    expect(reasoningParams({ baseUrl: groq, model: "openai/gpt-oss-120b" })).toEqual({ reasoning_effort: "low" });
+    expect(reasoningParams({ baseUrl: groq, model: "llama-3.3-70b-versatile" })).toEqual({});
+    expect(reasoningParams({ baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-oss-20b" })).toEqual({});
+  });
+
+  it("includes reasoning_effort in the request for the default Groq model", async () => {
+    let raw = "";
+    const reviewer = new OpenAiRiskReviewer({
+      config: { apiKey: FAKE_KEY, baseUrl: DEFAULT_OPENAI_BASE_URL, model: DEFAULT_OPENAI_MODEL },
+      fetch: async (_u, i) => {
+        raw = i.body as string;
+        return ok(JSON.stringify(REVIEW));
+      },
+      logger: { warn: () => undefined },
+    });
+    await reviewer.review(req, { signal: new AbortController().signal });
+    expect(JSON.parse(raw)).toMatchObject({ reasoning_effort: "low" });
+  });
+});
+
+describe("429 handling", () => {
+  const limited = () =>
+    new Response(JSON.stringify({ error: { message: "rate limit", code: "rate_limit_exceeded" } }), {
+      status: 429,
+      headers: { "retry-after": "7" },
+    });
+
+  it("logs kind=rate_limited with the retry-after value", async () => {
+    const { lines, run } = setup(async () => limited());
+    expect(await run()).toBeInstanceOf(Error);
+    expect(lines[0]!.obj).toMatchObject({ kind: "rate_limited", httpStatus: 429, retryAfter: "7", provider: "openai" });
+  });
+
+  it("drops a retry-after that is not a plain seconds value", async () => {
+    const { lines, run } = setup(
+      async () => new Response("x", { status: 429, headers: { "retry-after": "Wed, 21 Oct 2026 07:28:00 GMT" } }),
+    );
+    await run();
+    expect(lines[0]!.obj["retryAfter"]).toBeUndefined();
+  });
+
+  it("still fails closed to escalate with risk 100", async () => {
+    const { reviewer } = setup(async () => limited());
+    const d = await evaluateRisk(deps(reviewer, price("ok"), { ...CONFIG, aiTimeoutMs: 2_000 }), riskInput());
+    expect(d.decision).toBe("escalate");
+    expect(d.riskScore).toBe(100);
+    expect(d.audit.aiOutcome).toBe("ai_error");
+  });
+
+  it("demo:check shows retryAfter", async () => {
+    const f = (async () => limited()) as unknown as typeof fetch;
+    const line = formatAiCheck(await runAiCheck({ provider: "openai", ...config }, f));
+    expect(line).toContain("kind=rate_limited");
+    expect(line).toContain("retryAfter=7");
+  });
+});
+
+describe("review cache", () => {
+  function cached(fetchImpl: Fetch) {
+    let t = 1_000_000;
+    const reviewer = new OpenAiRiskReviewer({
+      config,
+      fetch: fetchImpl,
+      now: () => t,
+      logger: { warn: () => undefined },
+    });
+    const review = (r: ReviewRequest = req) => reviewer.review(r, { signal: new AbortController().signal });
+    return { review, advance: (ms: number) => (t += ms) };
+  }
+
+  it("does not call the provider twice for the same request within a minute", async () => {
+    let calls = 0;
+    const c = cached(async () => {
+      calls++;
+      return ok(JSON.stringify(REVIEW));
+    });
+    await c.review();
+    c.advance(59_000);
+    await expect(c.review()).resolves.toEqual(REVIEW);
+    expect(calls).toBe(1);
+  });
+
+  it("calls again after the window, and for a different request", async () => {
+    let calls = 0;
+    const c = cached(async () => {
+      calls++;
+      return ok(JSON.stringify(REVIEW));
+    });
+    await c.review();
+    await c.review({ ...req, amountCents: 2_000 });
+    expect(calls).toBe(2);
+    c.advance(60_001);
+    await c.review();
+    expect(calls).toBe(3);
+  });
+
+  it("never caches failures", async () => {
+    let calls = 0;
+    const c = cached(async () => {
+      calls++;
+      return calls === 1 ? errRes(429, { error: { message: "slow" } }) : ok(JSON.stringify(REVIEW));
+    });
+    await expect(c.review()).rejects.toBeInstanceOf(Error);
+    await expect(c.review()).resolves.toEqual(REVIEW);
+    expect(calls).toBe(2);
+  });
+
+  it("shares one in-flight call between concurrent identical requests", async () => {
+    let calls = 0;
+    const c = cached(async () => {
+      calls++;
+      await new Promise((r) => setTimeout(r, 10));
+      return ok(JSON.stringify(REVIEW));
+    });
+    const [a, b] = await Promise.all([c.review(), c.review()]);
+    expect(a).toEqual(b);
+    expect(calls).toBe(1);
   });
 });
 

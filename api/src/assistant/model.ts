@@ -1,7 +1,7 @@
 // LLM boundary for the assistant. Anthropic types stay in this file; errors
 // carry an HTTP status at most, never the key, request or response body.
 import type { AnthropicConfig, OpenAiConfig } from "../risk/config.js";
-import { chatCompletionsUrl } from "../risk/openai.js";
+import { chatCompletionsUrl, reasoningParams } from "../risk/openai.js";
 
 export interface ToolSpec {
   name: string;
@@ -133,8 +133,8 @@ export function parseModelPayload(payload: {
 // same NDJSON events, so the web adapter is unchanged. The key is sent only in
 // the Authorization header; errors carry an HTTP status at most.
 
-// Reasoning models spend output tokens on thinking, so keep this generous.
-const OPENAI_MAX_TOKENS = 2048;
+// Free tiers allow few tokens per minute; keep replies short. Reasoning effort is low.
+const OPENAI_MAX_TOKENS = 1024;
 
 type ChatMessage =
   | { role: "system" | "user"; content: string }
@@ -214,6 +214,7 @@ export class OpenAiAssistantModel implements AssistantModel {
       body: JSON.stringify({
         model: this.config.model,
         max_tokens: OPENAI_MAX_TOKENS,
+        ...reasoningParams(this.config),
         messages: toChatMessages(req),
         tools: req.tools.map((t) => ({
           type: "function",
