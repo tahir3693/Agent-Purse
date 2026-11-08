@@ -74,7 +74,6 @@ export class AnthropicAssistantModel implements AssistantModel {
       body: JSON.stringify({
         model: this.config.model,
         max_tokens: MAX_TOKENS,
-        temperature: 0,
         system: req.system,
         messages: req.messages,
         tools: req.tools,

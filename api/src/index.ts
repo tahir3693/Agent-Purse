@@ -54,6 +54,7 @@ async function main(): Promise<void> {
   requireEnv("ANTHROPIC_API_KEY");
   requireEnv("CHANNEL3_API_KEY");
 
+  const appLog: { current?: { warn(obj: object, msg: string): void } } = {};
   let wiring;
   try {
     const paymentProvider = createPaymentProvider(env);
@@ -66,7 +67,17 @@ async function main(): Promise<void> {
       maxAutoApproveRisk: MAX_AUTO_APPROVE_RISK,
       aiTimeoutMs: AI_TIMEOUT_MS,
     };
-    const reviewer = new AnthropicRiskReviewer({ config: anthropic, timeoutMs: AI_TIMEOUT_MS });
+    const reviewer = new AnthropicRiskReviewer({
+      config: anthropic,
+      timeoutMs: AI_TIMEOUT_MS,
+      // The app logger exists only after buildServer; fall back to console before that.
+      logger: {
+        warn: (obj, msg) =>
+          appLog.current
+            ? appLog.current.warn(obj, msg)
+            : console.warn(JSON.stringify({ msg, ...obj })),
+      },
+    });
 
     const authorizations = createPrismaAuthorizationStore(db);
     const audit = createPrismaAuditStore(db);
@@ -131,6 +142,7 @@ async function main(): Promise<void> {
   }
 
   const app = buildServer(wiring);
+  appLog.current = app.log;
   const { host, port } = loadConfig();
   try {
     await app.listen({ host, port });

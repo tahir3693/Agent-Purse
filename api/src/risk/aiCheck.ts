@@ -1,46 +1,22 @@
 // One real Anthropic Messages call to confirm ANTHROPIC_API_KEY and AI_MODEL
-// work. Reports only OK or an error category; never the key or a response body.
+// work. Reports only OK or a sanitized diagnostic (kind, status, redacted and
+// truncated provider message); never the key, headers, prompt or full body.
 import type { AnthropicConfig } from "./config.js";
+import { diagnose, errorFromResponse, formatDiagnostic, type AiDiagnostic } from "./diagnostics.js";
 
-export type AiCheckCategory =
-  "auth" | "quota" | "model" | "network" | "unknown";
-export type AiCheckResult =
-  { ok: true; model: string } | { ok: false; category: AiCheckCategory };
+export type AiCheckResult = { ok: true; model: string } | { ok: false; diagnostic: AiDiagnostic };
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
-
-/** Pure mapping from an HTTP status or thrown error to a category. */
-export function classifyAnthropicError(
-  input: { status: number } | { error: unknown }
-): AiCheckCategory {
-  if ("status" in input) {
-    const s = input.status;
-    if (s === 401 || s === 403) return "auth";
-    if (s === 402 || s === 429 || s === 529) return "quota";
-    if (s === 400 || s === 404) return "model";
-    return "unknown";
-  }
-  const e = input.error;
-  if (
-    e instanceof Error &&
-    (e.name === "TimeoutError" ||
-      e.name === "AbortError" ||
-      e instanceof TypeError)
-  ) {
-    return "network";
-  }
-  return "unknown";
-}
 
 export async function runAiCheck(
   config: AnthropicConfig,
   fetchImpl: typeof fetch = (i, init) => fetch(i, init),
   timeoutMs = 20_000
 ): Promise<AiCheckResult> {
-  let res: Response;
+  const secrets = [config.apiKey];
   try {
-    res = await fetchImpl(ANTHROPIC_URL, {
+    const res = await fetchImpl(ANTHROPIC_URL, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -54,21 +30,17 @@ export async function runAiCheck(
       }),
       signal: AbortSignal.timeout(timeoutMs),
     });
+    if (!res.ok) {
+      return { ok: false, diagnostic: diagnose(await errorFromResponse(res), config.model, secrets) };
+    }
+    // Drain without reading into output.
+    await res.body?.cancel().catch(() => undefined);
+    return { ok: true, model: config.model };
   } catch (error) {
-    return { ok: false, category: classifyAnthropicError({ error }) };
+    return { ok: false, diagnostic: diagnose(error, config.model, secrets) };
   }
-  // Drain without reading into output: the body may echo request details.
-  await res.body?.cancel().catch(() => undefined);
-  if (!res.ok)
-    return {
-      ok: false,
-      category: classifyAnthropicError({ status: res.status }),
-    };
-  return { ok: true, model: config.model };
 }
 
 export function formatAiCheck(r: AiCheckResult): string {
-  return r.ok
-    ? `AI check: OK (model ${r.model})`
-    : `AI check: FAILED (${r.category})`;
+  return r.ok ? `AI check: OK (model ${r.model})` : `AI check: FAILED (${formatDiagnostic(r.diagnostic)})`;
 }
