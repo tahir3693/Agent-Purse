@@ -65,7 +65,7 @@ export interface RiskDecision {
 
 /** Tunables supplied by the caller (owner policy storage is spec-08). */
 export interface RiskGuardConfig {
-  /** Amounts above this are never auto-approved when the price status is unknown. */
+  /** Amounts above this are never auto-approved (deterministic escalate). */
   autoApproveBelowCents: number;
   /** AI riskScore above this escalates. */
   maxAutoApproveRisk: number;

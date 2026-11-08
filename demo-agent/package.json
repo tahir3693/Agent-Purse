@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
   "scripts": {
+    "start": "node --env-file-if-exists=../.env --import tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15"
   }
 }

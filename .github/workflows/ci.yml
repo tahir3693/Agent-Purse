@@ -1,4 +1,4 @@
-﻿name: ci
+name: ci
 on:
   push:
     branches: [main]
@@ -16,5 +16,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:env-example
       - run: pnpm lint
+      # Workspace packages are consumed from dist; build them before typecheck and tests.
+      - run: pnpm --filter @agentpurse/shared run build
       - run: pnpm typecheck
       - run: pnpm test

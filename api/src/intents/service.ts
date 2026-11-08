@@ -228,7 +228,8 @@ export async function createIntent(
   if (!parsed.success) {
     throw new ValidationError([...new Set(parsed.error.issues.map((i) => i.path.join(".")))]);
   }
-  const b = parsed.data;
+  // productId only feeds the price check; it is never persisted.
+  const { productId, ...b } = parsed.data;
   const agentId = agent.id;
   const ownerId = agent.ownerId ?? null;
 
@@ -285,6 +286,7 @@ export async function createIntent(
         description: b.description,
       },
       justification: b.justification,
+      ...(productId !== undefined ? { productId } : {}),
       policy,
       history,
     });

@@ -17,6 +17,8 @@
     "test": "vitest run",
     "build": "pnpm -r run build",
     "seed:demo": "pnpm --filter @agentpurse/api seed:demo",
+    "demo:run": "pnpm --filter @agentpurse/demo-agent run start",
+    "demo:check": "pnpm --filter @agentpurse/api run ai:check",
     "db:migrate": "pnpm --filter @agentpurse/api db:migrate",
     "channel3:smoke": "pnpm --filter @agentpurse/api channel3:smoke",
     "payments:smoke": "pnpm --filter @agentpurse/api payments:smoke",
