@@ -1,0 +1,338 @@
+/*
+ * Studio-only styles. Every selector is scoped under .studio-frame,
+ * .studio-dashboard or .dash[data-page="studio"]. No global selectors and no
+ * :root changes; colours come from the existing tokens.
+ */
+
+/* ---------- Page: one scroll area, frame fills the viewport ---------- */
+.dash[data-page="studio"] {
+  max-width: none;
+  height: calc(100dvh - 3.5rem - 1px);
+  padding: 1rem 1.25rem 1rem;
+  gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dash[data-page="studio"] .studio-dashboard {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.dash[data-page="studio"] .page-header h1 {
+  font-size: 1.375rem;
+}
+.dash[data-page="studio"] .page-header p {
+  margin-top: 0.2rem;
+  max-width: 60rem;
+  font-size: 0.875rem;
+}
+
+/* ---------- Toolbar ---------- */
+.studio-dashboard .studio-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.studio-dashboard .studio-toolbar .form-status {
+  margin-left: auto;
+}
+
+/* ---------- Frame ---------- */
+.studio-dashboard .studio-frame,
+.dash[data-page="studio"] .studio-frame {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 22rem;
+  min-width: 0;
+}
+
+/* ---------- Widgets (rendered inside the Studio frame) ---------- */
+.studio-frame .apw {
+  container-type: inline-size;
+  height: 100%;
+  min-width: 0;
+  overflow: auto;
+  color: var(--text);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.studio-frame .apw p {
+  margin: 0;
+}
+
+/* Spend per day: column chart */
+.studio-frame .apw-chart {
+  --axis-w: 3.25rem;
+  margin: 0;
+  height: 100%;
+  min-height: 11rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+.studio-frame .apw-axis-title {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.studio-frame .apw-xtitle {
+  text-align: center;
+}
+.studio-frame .apw-plot {
+  padding-top: 0.75rem;
+  flex: 1 1 auto;
+  min-height: 6rem;
+  display: grid;
+  grid-template-columns: var(--axis-w) minmax(0, 1fr);
+  gap: 0.5rem;
+}
+.studio-frame .apw-yaxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin: -0.5em 0;
+  color: var(--text-2);
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.studio-frame .apw-area {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+}
+.studio-frame .apw-grid {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.studio-frame .apw-grid span {
+  border-top: 1px dashed var(--border);
+}
+.studio-frame .apw-cols {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0 0.25rem;
+  list-style: none;
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+.studio-frame .apw-cols > li {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 6px 6px 0 0;
+  outline-offset: 1px;
+}
+.studio-frame .apw-col {
+  display: block;
+  width: min(100%, 2.75rem);
+  background: var(--grad);
+  border-radius: 6px 6px 0 0;
+  transition: filter 120ms ease;
+}
+.studio-frame .apw-cols > li:hover .apw-col,
+.studio-frame .apw-cols > li:focus-visible .apw-col {
+  filter: brightness(1.2);
+}
+.studio-frame .apw-cols > li:focus-visible {
+  outline: 2px solid var(--brand);
+}
+.studio-frame .apw-tip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--text);
+  box-shadow: var(--shadow-2);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.studio-frame .apw-tip strong {
+  font-size: 0.875rem;
+}
+.studio-frame .apw-tip span {
+  color: var(--text-2);
+}
+.studio-frame .apw-cols > li:first-child .apw-tip {
+  left: 0;
+  transform: none;
+}
+.studio-frame .apw-cols > li:last-child .apw-tip {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+.studio-frame .apw-cols > li:hover .apw-tip,
+.studio-frame .apw-cols > li:focus-visible .apw-tip {
+  display: flex;
+}
+.studio-frame .apw-xaxis {
+  display: grid;
+  grid-template-columns: var(--axis-w) minmax(0, 1fr);
+  gap: 0.5rem;
+}
+.studio-frame .apw-xaxis ul {
+  margin: 0;
+  padding: 0 0.25rem;
+  list-style: none;
+  display: flex;
+  gap: 0.25rem;
+}
+.studio-frame .apw-xaxis li {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+@container (max-width: 34rem) {
+  .studio-frame .apw-xaxis li:nth-child(even) {
+    visibility: hidden;
+  }
+}
+@container (max-width: 21rem) {
+  .studio-frame .apw-xaxis li:not(:nth-child(4n + 1)) {
+    visibility: hidden;
+  }
+}
+
+/* Decisions: compact rows */
+.studio-frame .apw-dec {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.625rem;
+}
+.studio-frame .apw-dec > li {
+  --tone: var(--text-2);
+  display: grid;
+  grid-template-columns: 7rem 2.25rem minmax(2rem, 1fr) 2.75rem;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.studio-frame .apw-dec > li[data-status="approved"] {
+  --tone: var(--success);
+}
+.studio-frame .apw-dec > li[data-status="escalated"] {
+  --tone: var(--warning);
+}
+.studio-frame .apw-dec > li[data-status="denied"] {
+  --tone: var(--danger);
+}
+.studio-frame .apw-dec-count {
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.studio-frame .apw-dec-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--raised);
+  overflow: hidden;
+}
+.studio-frame .apw-dec-track span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: 999px;
+  background: var(--tone);
+}
+.studio-frame .apw-dec-pct {
+  color: var(--text-2);
+  font-size: 0.75rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+@container (max-width: 17rem) {
+  .studio-frame .apw-dec > li {
+    grid-template-columns: 6.5rem 2rem minmax(1rem, 1fr);
+    gap: 0.5rem;
+  }
+  .studio-frame .apw-dec-pct {
+    display: none;
+  }
+}
+
+/* Escalation queue: cards */
+.studio-frame .apw-queue {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+}
+.studio-frame .apw-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.studio-frame .apw-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.6rem;
+  min-width: 0;
+}
+.studio-frame .apw-amount {
+  font-size: 1.125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.studio-frame .apw-payee {
+  min-width: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.studio-frame .apw-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+.studio-frame .apw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+.studio-frame .apw-card .error-text {
+  overflow-wrap: anywhere;
+}

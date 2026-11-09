@@ -9,11 +9,12 @@ import {
   directLlmRunner,
   studioTheme,
   type AgAiHarnessSetup,
+  type AgPanelConfig,
   type AgStudioApi,
   type AgWidgetsConfig,
 } from "ag-studio";
 import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
-import { RotateCcw } from "lucide-react";
+import { Pencil, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { createAssistantAdapter } from "../../lib/assistant/adapter";
@@ -30,6 +31,7 @@ import { buildIntentsSource } from "../../lib/studio/schema";
 import { useLive } from "../live/LiveProvider";
 import { Button } from "../ui/Button";
 import { AP_WIDGETS, type StudioContext } from "./widgets";
+import "./studio.css";
 
 /**
  * Studio theme wired to the CSS variables in globals.css, so it follows the
@@ -42,7 +44,25 @@ export const apStudioTheme = studioTheme.withParams({
   borderColor: "var(--border)",
   fontFamily: "inherit",
   browserColorScheme: "inherit",
+  // Fixed assistant width and readable widget cards.
+  studioAiPanelWidth: 360,
+  studioWidgetPadding: 16,
+  studioWidgetTitleFontSize: 17,
+  studioWidgetTitleFontWeight: 600,
 });
+
+// Clean view: assistant only. "Edit layout" swaps it for Compose (edit) and Data
+// panels so the canvas keeps enough width for the widgets.
+const PANELS_CLEAN: AgPanelConfig = { edit: { right: ["ai"] } };
+const PANELS_EDIT: AgPanelConfig = {
+  edit: { left: ["edit", "data"] },
+};
+// 16px page padding and gaps between widgets.
+const PAGE_LAYOUT = {
+  pagePadding: 16,
+  widgetPadding: 16,
+  minWidth: 320,
+} as const;
 
 const PROMPT_STARTERS = [
   {
@@ -108,6 +128,7 @@ export default function StudioDashboard({
     toStudioRows(store.getSnapshot().intents)
   );
   const [notice, setNotice] = useState("");
+  const [editLayout, setEditLayout] = useState(false);
   const initialState = useMemo(() => loadSavedState(storage()) as never, []);
 
   useEffect(() => {
@@ -132,8 +153,17 @@ export default function StudioDashboard({
   const data = useMemo(() => ({ sources: [buildIntentsSource(rows)] }), [rows]);
 
   return (
-    <div className="stack">
-      <div className="row">
+    <div className="stack studio-dashboard">
+      <div className="studio-toolbar">
+        <Button
+          variant="secondary"
+          size="sm"
+          aria-pressed={editLayout}
+          onClick={() => setEditLayout((v) => !v)}
+        >
+          <Pencil size={16} aria-hidden="true" />
+          Edit layout
+        </Button>
         <Button
           variant="secondary"
           size="sm"
@@ -157,6 +187,8 @@ export default function StudioDashboard({
             data={data}
             mode="edit"
             theme={apStudioTheme}
+            panels={editLayout ? PANELS_EDIT : PANELS_CLEAN}
+            layout={PAGE_LAYOUT}
             initialState={initialState}
             widgets={widgets}
             context={context}

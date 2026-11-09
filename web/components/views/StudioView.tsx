@@ -20,10 +20,10 @@ const StudioDashboard = dynamic(() => import("../studio/StudioDashboard"), {
 export function StudioView() {
   const licenseKey = getPublicEnv().agGridLicenseKey;
   return (
-    <div className="stack">
+    <div className="stack studio-dashboard">
       <PageHeader
         title="Studio"
-        description="Build your own view of your agents' spending. The assistant is read-only: it can explain decisions and summarise data, but it cannot approve, deny or change anything. Payments are Braintree sandbox transactions (a PayPal service)."
+        description="Your agents' spending at a glance. The assistant is read-only: it explains decisions and summarises data, but cannot approve, deny or change anything. Payments are Braintree sandbox transactions (a PayPal service)."
       />
       {licenseKey ? (
         <StudioDashboard licenseKey={licenseKey} />
