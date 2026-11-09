@@ -1,15 +1,8 @@
 "use client";
 
 import type { Policy } from "@agentpurse/shared";
-import { Bot, Pencil, Power, PowerOff, RefreshCw } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
-import { rememberAgents } from "../../lib/client/agentNames";
+import { Bot, Pencil, Power, PowerOff } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { owner } from "../../lib/client/api";
 import { useOwnerData } from "../../lib/client/useOwnerData";
 import { policySummary } from "../../lib/policyForm";
@@ -19,64 +12,23 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
-import { ShortId } from "../ui/ShortId";
 import { SkeletonList } from "../ui/Skeleton";
 import { Toast } from "../ui/Toast";
 import { KeyDialog } from "./KeyDialog";
 import { DEFAULT_POLICY_FORM, PolicyEditor } from "./PolicyEditor";
 import { validatePolicyForm } from "../../lib/policyForm";
 
-/**
- * A policy is "loading" only while its request is in flight. The request has a
- * timeout, so a stuck connection ends in an error state with a Retry button
- * instead of an endless "Loading policy".
- */
-type PolicyState =
-  | { status: "loading" }
-  | { status: "ok"; policy: Policy | null }
-  | { status: "error"; message: string };
-type Policies = Record<string, PolicyState>;
-
-export const POLICY_TIMEOUT_MS = 15_000;
-
-async function fetchPolicy(agentId: string): Promise<PolicyState> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<PolicyState>((resolve) => {
-    timer = setTimeout(
-      () =>
-        resolve({
-          status: "error",
-          message: "The policy request timed out.",
-        }),
-      POLICY_TIMEOUT_MS
-    );
-  });
-  const call = owner<{ policy: Policy | null }>(
-    `agents/${agentId}/policy`
-  ).then((r): PolicyState =>
-    r.ok
-      ? { status: "ok", policy: r.data.policy }
-      : { status: "error", message: r.message }
-  );
-  try {
-    return await Promise.race([call, timeout]);
-  } finally {
-    if (timer !== undefined) clearTimeout(timer);
-  }
-}
+type Policies = Record<string, Policy | null>;
 
 function AgentRow({
   agent,
-  policyState,
-  onRetry,
+  policy,
   onChange,
 }: {
   agent: Agent;
-  policyState: PolicyState | undefined;
-  onRetry: () => void;
+  policy: Policy | null | undefined;
   onChange: (a: Agent, p?: Policy) => void;
 }) {
-  const policy = policyState?.status === "ok" ? policyState.policy : undefined;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -106,36 +58,18 @@ function AgentRow({
         <span className="agent-avatar">
           <Bot size={20} aria-hidden="true" />
         </span>
-        <div className="stack" style={{ gap: "0.35rem", flex: 1, minWidth: 0 }}>
+        <div className="stack" style={{ gap: "0.35rem", flex: 1 }}>
           <div className="row">
-            <strong className="agent-name" title={agent.name}>
-              {agent.name}
-            </strong>
+            <strong className="agent-name">{agent.name}</strong>
             <StatusPill
               status={agent.killed ? "killed" : "active"}
               label={agent.killed ? "Killed" : "Active"}
             />
           </div>
-          {policyState?.status === "error" ? (
-            <span className="row" role="alert">
-              <span className="error-text">
-                Could not load the policy: {policyState.message}
-              </span>
-              <Button variant="secondary" size="sm" onClick={onRetry}>
-                <RefreshCw size={14} aria-hidden="true" />
-                Retry
-              </Button>
-            </span>
-          ) : (
-            <span className="muted">
-              {policyState === undefined || policyState.status === "loading"
-                ? "Loading policy"
-                : policySummary(policyState.policy)}
-            </span>
-          )}
-          <p className="muted row" style={{ gap: "0.35rem" }}>
-            Agent id <ShortId id={agent.id} label="agent id" />
-          </p>
+          <span className="muted">
+            {policy === undefined ? "Loading policy" : policySummary(policy)}
+          </span>
+          <p className="muted plain">Agent id {agent.id}</p>
         </div>
       </div>
       <div className="row">
@@ -198,20 +132,17 @@ export function Agents() {
   );
   const requested = useRef(new Set<string>());
 
-  const loadPolicy = useCallback((id: string) => {
-    requested.current.add(id);
-    setPolicies((p) => ({ ...p, [id]: { status: "loading" } }));
-    void fetchPolicy(id).then((state) =>
-      setPolicies((p) => ({ ...p, [id]: state }))
-    );
-  }, []);
-
   useEffect(() => {
-    rememberAgents(data?.agents ?? []);
     for (const a of data?.agents ?? []) {
-      if (!requested.current.has(a.id)) loadPolicy(a.id);
+      if (requested.current.has(a.id)) continue;
+      requested.current.add(a.id);
+      void owner<{ policy: Policy | null }>(`agents/${a.id}/policy`).then((r) =>
+        setPolicies((p) =>
+          a.id in p ? p : { ...p, [a.id]: r.ok ? r.data.policy : null }
+        )
+      );
     }
-  }, [data, loadPolicy]);
+  }, [data]);
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -232,10 +163,7 @@ export function Agents() {
     requested.current.add(r.data.agent.id);
     setPolicies((p) => ({
       ...p,
-      [r.data.agent.id]: {
-        status: "ok",
-        policy: policy.ok ? policy.policy : null,
-      },
+      [r.data.agent.id]: policy.ok ? policy.policy : null,
     }));
     setNewKey({ name: r.data.agent.name, key: r.data.apiKey });
     setName("");
@@ -300,19 +228,14 @@ export function Agents() {
           <AgentRow
             key={a.id}
             agent={a}
-            policyState={policies[a.id]}
-            onRetry={() => loadPolicy(a.id)}
+            policy={policies[a.id]}
             onChange={(next, policy) => {
               setData((prev) => ({
                 agents: (prev?.agents ?? []).map((x) =>
                   x.id === next.id ? next : x
                 ),
               }));
-              if (policy)
-                setPolicies((p) => ({
-                  ...p,
-                  [next.id]: { status: "ok", policy },
-                }));
+              if (policy) setPolicies((p) => ({ ...p, [next.id]: policy }));
             }}
           />
         ))}

@@ -1,9 +1,6 @@
 "use client";
 
 import { Radio } from "lucide-react";
-import { useIntentLookup } from "../../lib/client/useIntentLookup";
-import { eventChip } from "../../lib/liveText";
-import { EventDetail } from "../live/EventDetail";
 import { useLive } from "../live/LiveProvider";
 import { StatusPill } from "../ui/Badge";
 import { EmptyState } from "../ui/EmptyState";
@@ -33,8 +30,7 @@ const STATUS_WORD = {
 } as const;
 
 export function LiveMonitor() {
-  const { status, events, version } = useLive();
-  const intents = useIntentLookup(version);
+  const { status, events } = useLive();
   return (
     <div className="stack">
       <PageHeader
@@ -63,17 +59,15 @@ export function LiveMonitor() {
             <div className="tl-body">
               <div className="row">
                 <strong>{EVENT_LABEL[e.type] ?? e.type}</strong>
-                {(() => {
-                  const chip = eventChip(e);
-                  return chip ? (
-                    <StatusPill status={chip.status} label={chip.label} />
-                  ) : null;
-                })()}
+                {e.state ? <StatusPill status={e.state} /> : null}
+                {e.decision ? <StatusPill status={e.decision} /> : null}
                 <span className="muted num">
                   {new Date(e.at).toLocaleTimeString()}
                 </span>
               </div>
-              <EventDetail event={e} intent={intents.get(e.intentId)} />
+              <p className="muted plain">
+                Intent {e.intentId}, agent {e.agentId}
+              </p>
             </div>
           </li>
         ))}

@@ -10,7 +10,6 @@ import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 import { Skeleton } from "../ui/Skeleton";
-import { ShortId } from "../ui/ShortId";
 import { Toast } from "../ui/Toast";
 
 export function Vault() {
@@ -20,13 +19,6 @@ export function Vault() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
-
-  // "Demo card 1", "Demo card 2" ... in the order the cards were linked.
-  const cardLabel = new Map(
-    [...(data?.methods ?? [])]
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-      .map((m, i) => [m.id, `Demo card ${i + 1}`] as const)
-  );
 
   async function link() {
     setBusy(true);
@@ -98,38 +90,31 @@ export function Vault() {
       ) : null}
       <ul className="pm-grid" aria-label="Linked payment methods">
         {data?.methods.map((m) => (
-          <li className="pm-item" key={m.id}>
-            <div className="pm-card">
-              <div className="pm-top">
-                <span>{m.cardType ?? "Card"}</span>
-                <span className="tag">Sandbox</span>
+          <li className="pm-card" key={m.id}>
+            <div className="pm-top">
+              <span>{m.cardType ?? "Card"}</span>
+              <span className="tag">Sandbox</span>
+            </div>
+            <p
+              className="pm-number num"
+              aria-label={`Card ending ${m.last4 ?? "unknown"}`}
+            >
+              <span aria-hidden="true">•••• •••• •••• {m.last4 ?? "----"}</span>
+            </p>
+            <div className="pm-foot">
+              <div>
+                <span className="pm-status">Linked</span>
+                <p className="num">{new Date(m.createdAt).toLocaleString()}</p>
               </div>
-              <p
-                className="pm-number num"
-                aria-label={`Card ending ${m.last4 ?? "unknown"}`}
-              >
-                <span aria-hidden="true">
-                  •••• •••• •••• {m.last4 ?? "----"}
-                </span>
-              </p>
-              <div className="pm-foot">
-                <div>
-                  <span className="pm-status">Linked</span>
-                  <p className="num">
-                    {new Date(m.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                <div style={{ textAlign: "right", minWidth: 0 }}>
-                  <p className="pm-id">
-                    Method id <ShortId id={m.id} label="method id" />
-                  </p>
-                  <p>
-                    Token <span className="num">{m.tokenRef}</span>
-                  </p>
-                </div>
+              <div style={{ textAlign: "right", minWidth: 0 }}>
+                <p>
+                  Method id <code>{m.id}</code>
+                </p>
+                <p>
+                  Token <span className="num">{m.tokenRef}</span>
+                </p>
               </div>
             </div>
-            <p className="pm-label">{cardLabel.get(m.id)}</p>
           </li>
         ))}
       </ul>

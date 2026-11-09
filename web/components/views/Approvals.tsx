@@ -4,7 +4,6 @@ import { Bot, Check, CircleCheck, Store, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { owner } from "../../lib/client/api";
 import { useOwnerData } from "../../lib/client/useOwnerData";
-import { plural } from "../../lib/format";
 import { formatMoney } from "../../lib/money";
 import { applyDecision, type QueueItem } from "../../lib/approvals";
 import { decisionInfo, type Intent, type IntentDetail } from "../../lib/types";
@@ -16,7 +15,6 @@ import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 import { SkeletonList } from "../ui/Skeleton";
 import { Toast } from "../ui/Toast";
-import { AgentRef } from "./AgentRef";
 
 export function Approvals() {
   const { version } = useLive();
@@ -104,7 +102,7 @@ export function Approvals() {
                     <StatusPill status="escalated" />
                     <span className="muted row" style={{ gap: "0.35rem" }}>
                       <Bot size={14} aria-hidden="true" />
-                      Agent <AgentRef id={intent.agentId} />
+                      Agent <span className="num">{intent.agentId}</span>
                     </span>
                   </div>
                   <p
@@ -139,7 +137,7 @@ export function Approvals() {
                       <span className="muted num">
                         Market median {median}
                         {info.priceSampleSize > 0
-                          ? ` (${plural(info.priceSampleSize, "offer")})`
+                          ? ` (${info.priceSampleSize} offers)`
                           : ""}
                       </span>
                     </div>

@@ -14,9 +14,6 @@ import { useEffect, useState } from "react";
 import { useOwnerData } from "../../lib/client/useOwnerData";
 import { formatMoney } from "../../lib/money";
 import type { Stats } from "../../lib/types";
-import { useIntentLookup } from "../../lib/client/useIntentLookup";
-import { eventChip } from "../../lib/liveText";
-import { EventDetail } from "../live/EventDetail";
 import { useLive } from "../live/LiveProvider";
 import { ButtonLink } from "../ui/Button";
 import { Card, CardHeader } from "../ui/Card";
@@ -71,7 +68,6 @@ export function SandboxNote() {
 export function Overview() {
   const { version, events } = useLive();
   const { data, error, loading } = useOwnerData<Stats>("owner/stats", version);
-  const intents = useIntentLookup(version);
 
   const counts = data?.countsByDecision ?? {};
   const waiting = data?.countsByState["escalated"] ?? 0;
@@ -171,13 +167,8 @@ export function Overview() {
             {events.slice(0, 6).map((e, i) => (
               <li key={`${e.intentId}-${e.type}-${e.at}-${i}`}>
                 <strong>{EVENT_LABEL[e.type] ?? e.type}</strong>
-                {(() => {
-                  const chip = eventChip(e);
-                  return chip ? (
-                    <StatusPill status={chip.status} label={chip.label} />
-                  ) : null;
-                })()}
-                <EventDetail event={e} intent={intents.get(e.intentId)} />
+                {e.state ? <StatusPill status={e.state} /> : null}
+                {e.decision ? <StatusPill status={e.decision} /> : null}
                 <span className="activity-time num">
                   {new Date(e.at).toLocaleTimeString()}
                 </span>
