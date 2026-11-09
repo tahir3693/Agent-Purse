@@ -1,8 +1,8 @@
 // Default Studio layout and its localStorage persistence (spec-09b).
 import { INTENT_FIELD_IDS } from "./schema";
 
-// v3: new panel defaults and widget sizes (v2 and v1 states are ignored).
-export const LAYOUT_KEY = "ap-studio-layout-v3";
+// v2: v1 states could reference fields the schema did not define.
+export const LAYOUT_KEY = "ap-studio-layout-v2";
 
 export const INTENT_GRID_COLUMNS = [
   "createdAt",
@@ -46,16 +46,15 @@ export const DEFAULT_STATE = {
         },
       },
       widgetLayout: {
-        spend: { xTrack: 0, yTrack: 0, xSpan: 15, ySpan: 18 },
-        decisions: { xTrack: 15, yTrack: 0, xSpan: 9, ySpan: 18 },
-        queue: { xTrack: 0, yTrack: 18, xSpan: 24, ySpan: 18 },
-        grid: { xTrack: 0, yTrack: 36, xSpan: 24, ySpan: 22 },
+        spend: { xTrack: 0, yTrack: 0, xSpan: 14, ySpan: 14 },
+        decisions: { xTrack: 14, yTrack: 0, xSpan: 10, ySpan: 14 },
+        queue: { xTrack: 0, yTrack: 14, xSpan: 24, ySpan: 16 },
+        grid: { xTrack: 0, yTrack: 30, xSpan: 24, ySpan: 20 },
       },
     },
   ],
   selectedPageId: "overview",
-  // Filters stay a collapsed strip; the assistant is open at a fixed width.
-  panels: { filters: { collapsed: true }, ai: { width: 360 } },
+  panels: { filters: { collapsed: true } },
 } as const;
 
 /** Every field id referenced by a widget `dataMapping` anywhere in a layout state. */

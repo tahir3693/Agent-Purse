@@ -82,11 +82,7 @@ export function AppShell({
             <UserMenu />
           </div>
         </header>
-        <main
-          className="dash"
-          id="main"
-          data-page={path === "/dashboard/studio" ? "studio" : undefined}
-        >
+        <main className="dash" id="main">
           {banner}
           {children}
         </main>

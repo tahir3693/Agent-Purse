@@ -13,7 +13,7 @@ import {
   type AgWidgetsConfig,
 } from "ag-studio";
 import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
-import { Pencil, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { createAssistantAdapter } from "../../lib/assistant/adapter";
@@ -42,36 +42,7 @@ export const apStudioTheme = studioTheme.withParams({
   borderColor: "var(--border)",
   fontFamily: "inherit",
   browserColorScheme: "inherit",
-  // Assistant panel: fixed, readable width (documented theme param, default 350).
-  studioAiPanelWidth: 360,
 });
-
-// AG Studio shows the assistant panel only in edit mode, so the page always runs
-// in edit mode. "View" = the assistant plus the widgets; "Edit layout" adds the
-// Compose and Data panels (documented `panels` option). No filters are used here.
-const PANELS_VIEW = { edit: { left: ["ai"], right: [] } } as const;
-const PANELS_EDIT = {
-  edit: { left: ["ai"], right: ["edit", "data"] },
-} as const;
-
-// Page styling through the documented `layout` option: roomy cards, theme colors.
-const PAGE_LAYOUT = {
-  minWidth: 320,
-  pagePadding: 16,
-  widgetPadding: 16,
-  backgroundColor: "transparent",
-  widgetBackgroundColor: "var(--surface)",
-  widgetBorderEnabled: true,
-  widgetBorderRadius: 16,
-  widgetBorderColor: "var(--border)",
-  widgetBorderWidth: 1,
-} as const;
-
-// Panel and assistant wording (documented `localeText` keys).
-const LOCALE_TEXT = {
-  panelTitleAi: "Assistant",
-  aiMessageInputPlaceholder: "Ask about your agents, spend or decisions",
-} as const;
 
 const PROMPT_STARTERS = [
   {
@@ -127,10 +98,7 @@ export default function StudioDashboard({
 }) {
   const { version } = useLive();
   // Captured from onApiReady (the documented way to reach the Studio API).
-  const apiRef = useRef<{
-    getState(): unknown;
-    setState(state: never): void;
-  } | null>(null);
+  const apiRef = useRef<{ setState(state: never): void } | null>(null);
   const store = useMemo(
     () => createOwnerStore((path, init) => owner(path, init)),
     []
@@ -140,31 +108,7 @@ export default function StudioDashboard({
     toStudioRows(store.getSnapshot().intents)
   );
   const [notice, setNotice] = useState("");
-  const [editing, setEditing] = useState(false);
-  // Panel layout always starts from the defaults (assistant open, others closed).
-  const initialState = useMemo(() => {
-    const saved = loadSavedState(storage()) as Record<string, unknown>;
-    return { ...saved, panels: DEFAULT_STATE.panels } as never;
-  }, []);
-
-  /** Editing gives the canvas the room: the assistant folds to a strip meanwhile. */
-  function toggleEditing() {
-    const next = !editing;
-    setEditing(next);
-    const api = apiRef.current;
-    if (!api) return;
-    type Panels = Record<string, Record<string, unknown> | undefined>;
-    const s = api.getState() as { panels?: Panels };
-    const panels = s.panels ?? {};
-    api.setState({
-      ...s,
-      panels: {
-        ...panels,
-        ai: { ...panels["ai"], collapsed: next },
-        filters: { ...panels["filters"], collapsed: true },
-      },
-    } as never);
-  }
+  const initialState = useMemo(() => loadSavedState(storage()) as never, []);
 
   useEffect(() => {
     void store.refresh();
@@ -188,17 +132,8 @@ export default function StudioDashboard({
   const data = useMemo(() => ({ sources: [buildIntentsSource(rows)] }), [rows]);
 
   return (
-    <div className="studio-dashboard">
-      <div className="row studio-toolbar">
-        <Button
-          variant={editing ? "primary" : "secondary"}
-          size="sm"
-          aria-pressed={editing}
-          onClick={toggleEditing}
-        >
-          <Pencil size={16} aria-hidden="true" />
-          Edit layout
-        </Button>
+    <div className="stack">
+      <div className="row">
         <Button
           variant="secondary"
           size="sm"
@@ -214,10 +149,6 @@ export default function StudioDashboard({
         <span role="status" aria-live="polite" className="form-status">
           {notice}
         </span>
-        <span className="studio-note">
-          The assistant is read-only. It cannot approve, deny or change
-          anything.
-        </span>
       </div>
       <div className="studio-frame">
         <AgStudioProvider modules={[AgStudioAiModule]} licenseKey={licenseKey}>
@@ -226,16 +157,12 @@ export default function StudioDashboard({
             data={data}
             mode="edit"
             theme={apStudioTheme}
-            panels={(editing ? PANELS_EDIT : PANELS_VIEW) as never}
-            layout={PAGE_LAYOUT as never}
-            localeText={LOCALE_TEXT as never}
             initialState={initialState}
             widgets={widgets}
             context={context}
             ai={ai}
             onApiReady={(e) => {
               apiRef.current = e.api as unknown as {
-                getState(): unknown;
                 setState(state: never): void;
               };
             }}
